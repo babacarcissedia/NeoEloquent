@@ -206,6 +206,13 @@ class DatabaseMigrationRepository implements MigrationRepositoryInterface
             ->get();
     }
 
+
+    public function getMigrationsByBatch($batch)
+    {
+        return $this->label()->where('batch', $batch)
+            ->get();
+    }
+
     public function deleteRepository(): void
     {
         $this->label()->delete();
