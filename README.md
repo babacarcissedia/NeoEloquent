@@ -4,6 +4,13 @@
 
 Neo4j Graph Eloquent Driver for Laravel.
 
+## Changes from original version
+- Add linter
+- Add static code analysis
+- Extend from Laravel classes for better support
+
+Last point above opens the door for current Laravel Ecosystem (ie Filament)
+
 ## Quick Reference
 
  - [Installation](#installation)

@@ -11,14 +11,13 @@
     "license": "MIT",
     "authors": [
         {
-            "name": "Abed Halawi",
-            "email": "abed.halawi@vinelab.com"
-        },
-        {
-            "name": "Kinane Domloje",
-            "email": "kinane@vinelab.com"
+            "name": "Babacar Cissé DIA",
+            "email": "bcdbuddy@outlook.com"
         }
     ],
+    "scripts": {
+      "analyze": "./vendor/bin/phpstan analyse"
+    },
     "require": {
         "php": ">=7.4",
         "illuminate/container": "^8.0|^9.0|^10.0|^11.0",
@@ -31,11 +30,12 @@
         "laudis/neo4j-php-client": "^2.3.3"
     },
     "require-dev": {
-        "mockery/mockery": "~1.3.0",
         "phpunit/phpunit": "^9.0",
         "symfony/var-dumper": "*",
-        "fzaninotto/faker": "~1.4",
-        "composer/composer": "^2.1"
+        "composer/composer": "^2.1",
+        "larastan/larastan": "^2.0",
+        "fakerphp/faker": "^1.23",
+        "orchestra/testbench": "^8.21"
     },
     "autoload": {
         "psr-4": {
@@ -53,6 +53,11 @@
             "providers": [
                 "Vinelab\\NeoEloquent\\NeoEloquentServiceProvider"
             ]
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true
         }
     }
 }
