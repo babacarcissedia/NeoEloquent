@@ -6,11 +6,10 @@ use Laudis\Neo4j\Types\CypherMap;
 use Laudis\Neo4j\Types\Relationship;
 use Vinelab\NeoEloquent\Eloquent\Model;
 use Vinelab\NeoEloquent\Eloquent\Builder;
+use Vinelab\NeoEloquent\Traits\ResultTrait;
 use Vinelab\NeoEloquent\Eloquent\Collection;
 use GraphAware\Neo4j\Client\Formatter\Result;
-use Vinelab\NeoEloquent\Traits\ResultTrait;
 use GraphAware\Bolt\Result\Result as GraphawareResult;
-use GraphAware\Common\Result\RecordViewInterface;
 
 class Finder extends Delegate
 {
@@ -70,6 +69,7 @@ class Finder extends Delegate
         $records = $this->firstRelationWithNodes($parent, $related, $type, $direction);
 
         $edges = [];
+
         // Collect the edges out of the found relationships.
         foreach ($records as $record) {
             // Now that we have the direction and the relationship all we need to do is generate the edge
@@ -118,9 +118,11 @@ class Finder extends Delegate
         $right = $this->first($related, $morph, $morphType, 'out');
 
         $edge = new HyperEdge($this->query, $parent, $type, $related, $morphType, $morph);
+
         if ($left) {
             $edge->setLeft($left);
         }
+
         if ($right) {
             $edge->setRight($right);
         }
@@ -213,6 +215,6 @@ class Finder extends Delegate
      */
     public function getEdgeClass($direction)
     {
-        return __NAMESPACE__.'\Edge'.ucfirst(mb_strtolower($direction));
+        return __NAMESPACE__ . '\Edge' . ucfirst(mb_strtolower($direction));
     }
 }

@@ -7,7 +7,7 @@ use Vinelab\NeoEloquent\Exceptions\InvalidCypherGrammarComponentException;
 
 class CypherGrammar extends Grammar
 {
-    protected $selectComponents = array(
+    protected $selectComponents = [
         'matches',
         'with',
         'wheres',
@@ -16,21 +16,7 @@ class CypherGrammar extends Grammar
         'orders',
         'offset',
         'limit',
-    );
-
-    /**
-     * Get the Cypher representation of the query.
-     *
-     * @return string
-     */
-    public function compileSelect(Builder $query)
-    {
-        if (is_null($query->columns)) {
-            $query->columns = array('*');
-        }
-
-        return trim($this->concatenate($this->compileComponents($query)));
-    }
+    ];
 
     /**
      * Compile the components necessary for a select clause.
@@ -40,19 +26,19 @@ class CypherGrammar extends Grammar
      *
      * @return array
      */
-    protected function compileComponents(Builder $query, $specified = null)
+    protected function compileComponents($query, $specified = null)
     {
-        $cypher = array();
+        $cypher = [];
 
-        $components = array();
+        $components = [];
 
         // Setup the components that we need to compile
         if ($specified) {
             // We support passing a string as well
             // by turning it into an array as needed
             // to be $components
-            if (!is_array($specified)) {
-                $specified = array($specified);
+            if (! is_array($specified)) {
+                $specified = [$specified];
             }
 
             $components = $specified;
@@ -84,20 +70,20 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    protected function compileComponent(Builder $query, $components, $component)
+    protected function compileComponent($query, $components, $component)
     {
         $cypher = '';
 
         // Let's make sure this is a proprietary component that we support
-        if (!in_array($component, $components)) {
+        if (! in_array($component, $components)) {
             throw new InvalidCypherGrammarComponentException($component);
         }
 
         // To compile the query, we'll spin through each component of the query and
         // see if that component exists. If it does we'll just call the compiler
         // function for the component which is responsible for making the Cypher.
-        if (!is_null($query->$component)) {
-            $method = 'compile'.ucfirst($component);
+        if (! is_null($query->$component)) {
+            $method = 'compile' . ucfirst($component);
 
             $cypher = $this->$method($query, $query->$component);
         }
@@ -113,33 +99,33 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    public function compileMatches(Builder $query, $matches)
+    public function compileMatches($query, $matches)
     {
-        if (!is_array($matches) || empty($matches)) {
+        if (! is_array($matches) || empty($matches)) {
             // when no matches are specified fallback to using the 'from' key
             $component = $this->compileComponents($query, ['from']);
             $cypher = $component['from'];
         } else {
             $optionalMatches = [];
             $mandatoryMatches = [];
-            foreach ($matches as $match) {
 
+            foreach ($matches as $match) {
                 switch($match['optional']) {
                     case 'or':
                         $optionalMatches[] = $match;
 
-                    break;
+                        break;
 
                     case 'and':
                         $mandatoryMatches[] = $match;
 
-                    break;
+                        break;
                 }
             }
 
             $cypher = $this->compileMandatoryMatchesCypher($query, $mandatoryMatches);
 
-            $cypher = $cypher.' '.$this->compileOptionalMatchesCypher($optionalMatches);
+            $cypher = $cypher . ' ' . $this->compileOptionalMatchesCypher($optionalMatches);
         }
 
         return $cypher;
@@ -148,24 +134,26 @@ class CypherGrammar extends Grammar
     public function compileMandatoryMatchesCypher($query, $matches)
     {
         $prepared = [];
+
         foreach ($matches as $match) {
-            $method = 'prepareMatch'.ucfirst($match['type']);
+            $method = 'prepareMatch' . ucfirst($match['type']);
             $prepared[] = $this->$method($match);
         }
 
         // If no mandatory matches are available force match the base model.
-        return !empty($prepared) ? 'MATCH '.implode(', ', $prepared) : $this->compileFrom($query, $query->from, true);
+        return ! empty($prepared) ? 'MATCH ' . implode(', ', $prepared) : $this->compileFrom($query, $query->from, true);
     }
 
     public function compileOptionalMatchesCypher($matches)
     {
         $optional = '';
+
         foreach ($matches as $match) {
-            $method = 'prepareMatch'.ucfirst($match['type']);
-            $optional =  $optional.' OPTIONAL MATCH '.$this->$method($match);
+            $method = 'prepareMatch' . ucfirst($match['type']);
+            $optional = $optional . ' OPTIONAL MATCH ' . $this->$method($match);
         }
 
-        return isset($optional) ? $optional : '';
+        return $optional ?? '';
     }
 
     /**
@@ -195,10 +183,10 @@ class CypherGrammar extends Grammar
 
         // We treat node ids differently here in Cypher
         // so we will have to turn it into something like id(node)
-        $property = $property == 'id' ? 'id('.$parentNode.')' : $parentNode.'.'.$property;
+        $property = $property == 'id' ? 'id(' . $parentNode . ')' : $parentNode . '.' . $property;
 
-        return '('.$parentNode.$parentLabels.'), '
-                .$this->craftRelation($parentNode, $relationshipLabel, $relatedNode, $relatedLabels, $direction);
+        return '(' . $parentNode . $parentLabels . '), '
+                . $this->craftRelation($parentNode, $relationshipLabel, $relatedNode, $relatedLabels, $direction);
     }
 
     /**
@@ -222,10 +210,10 @@ class CypherGrammar extends Grammar
 
         // We treat node ids differently here in Cypher
         // so we will have to turn it into something like id(node)
-        $property = $property == 'id' ? 'id('.$parent['node'].')' : $parent['node'].'.'.$property;
+        $property = $property == 'id' ? 'id(' . $parent['node'] . ')' : $parent['node'] . '.' . $property;
 
-        return '('.$parent['node'].$parentLabels.'), '
-                .$this->craftRelation($parent['node'], 'r', $relatedNode, '', $direction);
+        return '(' . $parent['node'] . $parentLabels . '), '
+                . $this->craftRelation($parent['node'], 'r', $relatedNode, '', $direction);
     }
 
     /**
@@ -256,19 +244,22 @@ class CypherGrammar extends Grammar
         switch (strtolower($direction)) {
             case 'out':
                 $relation = '(%s)-[%s]->%s';
-            break;
+
+                break;
 
             case 'in':
                 $relation = '(%s)<-[%s]-%s';
-            break;
+
+                break;
 
             default:
                 $relation = '(%s)-[%s]-%s';
-            break;
+
+                break;
         }
 
         return ($bare) ? sprintf($relation, $parentNode, $relationLabel, $relatedNode)
-            : sprintf($relation, $parentNode, $relationLabel, '('.$relatedNode.$relatedLabels.')');
+            : sprintf($relation, $parentNode, $relationLabel, '(' . $relatedNode . $relatedLabels . ')');
     }
 
     /**
@@ -284,12 +275,12 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    public function compileFrom(Builder $query, $labels, $forceMatch = false)
+    public function compileFrom(\Illuminate\Database\Query\Builder $query, $labels, $forceMatch = false)
     {
-        if(!$forceMatch) {
+        if(! $forceMatch) {
             // Only compile when no relational matches are specified,
             // mostly used for simple queries.
-            if (!empty($query->matches)) {
+            if (! empty($query->matches)) {
                 return '';
             }
         }
@@ -297,10 +288,10 @@ class CypherGrammar extends Grammar
 
         // every label must begin with a ':' so we need to check
         // and reformat if need be.
-        $labels = ':'.preg_replace('/^:/', '', $labels);
+        $labels = ':' . preg_replace('/^:/', '', $labels);
 
         // now we add the default placeholder for this node
-        $labels = $query->modelAsNode().$labels;
+        $labels = $query->modelAsNode() . $labels;
 
         return sprintf('MATCH (%s)', $labels);
     }
@@ -312,9 +303,9 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    protected function compileWheres(Builder $query)
+    public function compileWheres(\Illuminate\Database\Query\Builder $query)
     {
-        $cypher = array();
+        $cypher = [];
 
         if (is_null($query->wheres)) {
             return '';
@@ -325,8 +316,7 @@ class CypherGrammar extends Grammar
         // and maintainable since each clause has a very small method that it uses.
         foreach ($query->wheres as $where) {
             $method = "where{$where['type']}";
-
-            $cypher[] = $where['boolean'].' '.$this->$method($query, $where);
+            $cypher[] = $where['boolean'] . ' ' . $this->$method($query, $where);
         }
 
         // If we actually have some where clauses, we will strip off the first boolean
@@ -335,7 +325,7 @@ class CypherGrammar extends Grammar
         if (count($cypher) > 0) {
             $cypher = implode(' ', $cypher);
 
-            return 'WHERE '.preg_replace('/and |or /', '', $cypher, 1);
+            return 'WHERE ' . preg_replace('/and |or /', '', $cypher, 1);
         }
 
         return '';
@@ -349,11 +339,25 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    protected function whereBasic(Builder $query, $where)
+    protected function whereBasic($query, $where)
     {
         $value = $this->parameter($where);
 
-        return $this->wrap($where['column']).' '.$where['operator'].' '.$value;
+        return $this->wrap($where['column']) . ' ' . $where['operator'] . ' ' . $value;
+    }
+
+    /**
+     * Get the Cypher representation of the query.
+     *
+     * @return string
+     */
+    public function compileSelect($query)
+    {
+        if (is_null($query->columns)) {
+            $query->columns = ['*'];
+        }
+
+        return trim($this->concatenate($this->compileComponents($query)));
     }
 
     /**
@@ -364,9 +368,9 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    protected function whereCarried(Builder $query, $where)
+    protected function whereCarried($query, $where)
     {
-        return $where['column'].' '.$where['operator'].' '.$where['value'];
+        return $where['column'] . ' ' . $where['operator'] . ' ' . $where['value'];
     }
 
     /**
@@ -377,9 +381,9 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    protected function compileLimit(Builder $query, $limit)
+    protected function compileLimit($query, $limit)
     {
-        return 'LIMIT '.(int) $limit;
+        return 'LIMIT ' . (int) $limit;
     }
 
     /**
@@ -390,9 +394,9 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    protected function compileOffset(Builder $query, $offset)
+    protected function compileOffset($query, $offset)
     {
-        return 'SKIP '.(int) $offset;
+        return 'SKIP ' . (int) $offset;
     }
 
     /**
@@ -403,16 +407,16 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    protected function compileColumns(Builder $query, $properties)
+    protected function compileColumns($query, $properties)
     {
         // When we have an aggregate we will have to return it instead of the plain columns
         // since aggregates for Cypher are not calculated at the beginning of the query like Cypher
         // instead we'll have to return in a form such as: RETURN max(user.logins).
-        if (!is_null($query->aggregate)) {
+        if (! is_null($query->aggregate)) {
             return $this->compileAggregate($query, $query->aggregate);
         }
 
-        $node = $this->query->modelAsNode();
+        $node = $query->modelAsNode();
 
         // We need to make sure that there exists relations so that we return
         // them as well, also there has to be nothing carried in the query
@@ -431,21 +435,49 @@ class CypherGrammar extends Grammar
         // In the case where the query has relationships
         // we need to return the requested properties as is
         // since they are considered node placeholders.
-        if (!empty($query->matches)) {
+        if (! empty($query->matches)) {
             $columns = implode(', ', array_values($properties));
         } else {
             $columns = $this->columnize($properties);
+
             // when asking for specific properties (not *) we add
             // the node placeholder so that we can get the nodes and
             // the relationships themselves returned
-            if (!in_array('*', $properties) && !in_array($node, $properties)) {
-                $columns .= ", $node";
+            if (! in_array('*', $properties) && ! in_array($node, $properties)) {
+                $columns .= ", {$node}";
             }
         }
 
         $distinct = ($query->distinct) ? 'DISTINCT ' : '';
 
-        return 'RETURN '.$distinct.$columns;
+        return 'RETURN ' . $distinct . $columns;
+    }
+
+    public function compileAggregate($query, $aggregate)
+    {
+        $distinct = null;
+        $function = $aggregate['function'];
+
+        // When calling for the distinct count we'll set the distinct flag and ask for the count function.
+        if ($function == 'countDistinct') {
+            $function = 'count';
+            $distinct = 'DISTINCT ';
+        }
+
+        $node = $this->modelAsNode($query->from);
+
+        // We need to format the columns to be in the form of n.property unless it is a *.
+        $columns = implode(', ', array_map(function ($column) use ($node) {
+            return $column == '*' ? $column : "{$node}.{$column}";
+        }, $aggregate['columns']));
+
+        if (isset($aggregate['percentile']) && ! is_null($aggregate['percentile'])) {
+            $percentile = $aggregate['percentile'];
+
+            return "RETURN {$function}({$columns}, {$percentile})";
+        }
+
+        return "RETURN {$function}({$distinct}{$columns})";
     }
 
     /**
@@ -456,10 +488,10 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    public function compileOrders(Builder $query, $orders)
+    public function compileOrders($query, $orders)
     {
-        return 'ORDER BY '.implode(', ', array_map(function ($order) {
-                return $this->wrap($order['column']).' '.mb_strtoupper($order['direction']);
+        return 'ORDER BY ' . implode(', ', array_map(function ($order) {
+            return $this->wrap($order['column']) . ' ' . mb_strtoupper($order['direction']);
         }, $orders));
     }
 
@@ -471,7 +503,7 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    public function compileCreate(Builder $query, $values)
+    public function compileCreate($query, $values)
     {
         $labels = $this->prepareLabels($query->from);
 
@@ -490,7 +522,7 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    public function compileUpdate(Builder $query, $values)
+    public function compileUpdate($query, $values)
     {
         $columns = $this->columnsFromValues($values, true);
 
@@ -501,14 +533,14 @@ class CypherGrammar extends Grammar
 
         // We always need the MATCH clause in our Cypher which
         // is the responsibility of compiling the From component.
-        $match = $this->compileComponents($query, array('from'));
+        $match = $this->compileComponents($query, ['from']);
         $match = $match['from'];
 
         // When updating we need to return the count of the affected nodes
         // so we trick the Columns compiler into returning that for us.
-        $return = $this->compileColumns($query, array('count('.$query->modelAsNode().')'));
+        $return = $this->compileColumns($query, ['count(' . $query->modelAsNode() . ')']);
 
-        return "$match $where SET $columns $return";
+        return "{$match} {$where} SET {$columns} {$return}";
     }
 
     public function postfixValues(array $values, $updating = false)
@@ -518,7 +550,7 @@ class CypherGrammar extends Grammar
         $processed = [];
 
         foreach ($values as $key => $value) {
-            $processed[$key.$postfix] = $value;
+            $processed[$key . $postfix] = $value;
         }
 
         return $processed;
@@ -527,7 +559,7 @@ class CypherGrammar extends Grammar
     public function columnsFromValues(array $values, $updating = false)
     {
         $columns = [];
-         // Each one of the columns in the update statements needs to be wrapped in the
+        // Each one of the columns in the update statements needs to be wrapped in the
         // keyword identifiers, also a place-holder needs to be created for each of
         // the values in the list of bindings so we can make the sets statements.
 
@@ -536,7 +568,7 @@ class CypherGrammar extends Grammar
             // with query bindings.
             $postfix = $updating ? '_update' : '_create';
 
-            $columns[] = $this->wrap($key).' = '.$this->parameter(array('column' => $key.$postfix));
+            $columns[] = $this->wrap($key) . ' = ' . $this->parameter(['column' => $key . $postfix]);
         }
 
         return implode(', ', $columns);
@@ -550,11 +582,11 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    protected function whereIn(Builder $query, $where)
+    protected function whereIn(\Illuminate\Database\Query\Builder $query, $where)
     {
         $values = $this->valufy($where['values']);
 
-        return $this->wrap($where['column']).' IN '.$values;
+        return $this->wrap($where['column']) . ' IN ' . $values;
     }
 
     /**
@@ -565,11 +597,11 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    protected function whereNotIn(Builder $query, $where)
+    protected function whereNotIn(\Illuminate\Database\Query\Builder $query, $where)
     {
         $values = $this->valufy($where['values']);
 
-        return 'NOT '.$this->wrap($where['column']).' IN '.$values;
+        return 'NOT ' . $this->wrap($where['column']) . ' IN ' . $values;
     }
 
     /**
@@ -580,135 +612,18 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    protected function whereNested(Builder $query, $where)
+    protected function whereNested(\Illuminate\Database\Query\Builder $query, $where)
     {
         $nested = $where['query'];
 
-        return '('.substr($this->compileWheres($nested), 6).')';
+        return '(' . substr($this->compileWheres($nested), 6) . ')';
     }
 
-    /**
-     * Compile a where condition with a sub-select.
-     *
-     * @param \Illuminate\Database\Query\Builder $query
-     * @param array                              $where
-     *
-     * @return string
-     */
-    protected function whereSub(Builder $query, $where)
+    protected function compileHavings($query)
     {
-        $select = $this->compileSelect($where['query']);
+        $cypher = implode(' ', array_map([$this, 'compileHaving'], $$query->havings));
 
-        return $this->wrap($where['column']).' '.$where['operator']." ($select)";
-    }
-
-    /**
-     * Compile a "where null" clause.
-     *
-     * @param \Illuminate\Database\Query\Builder $query
-     * @param array                              $where
-     *
-     * @return string
-     */
-    protected function whereNull(Builder $query, $where)
-    {
-        return $this->wrap($where['column']).' is null';
-    }
-
-    /**
-     * Compile a "where not null" clause.
-     *
-     * @param \Illuminate\Database\Query\Builder $query
-     * @param array                              $where
-     *
-     * @return string
-     */
-    protected function whereNotNull(Builder $query, $where)
-    {
-        return $this->wrap($where['column']).' is not null';
-    }
-
-    /**
-     * Compile a "where date" clause.
-     *
-     * @param \Illuminate\Database\Query\Builder $query
-     * @param array                              $where
-     *
-     * @return string
-     */
-    protected function whereDate(Builder $query, $where)
-    {
-        return $this->dateBasedWhere('date', $query, $where);
-    }
-
-    /**
-     * Compile a "where day" clause.
-     *
-     * @param \Illuminate\Database\Query\Builder $query
-     * @param array                              $where
-     *
-     * @return string
-     */
-    protected function whereDay(Builder $query, $where)
-    {
-        return $this->dateBasedWhere('day', $query, $where);
-    }
-
-    /**
-     * Compile a "where month" clause.
-     *
-     * @param \Illuminate\Database\Query\Builder $query
-     * @param array                              $where
-     *
-     * @return string
-     */
-    protected function whereMonth(Builder $query, $where)
-    {
-        return $this->dateBasedWhere('month', $query, $where);
-    }
-
-    /**
-     * Compile a "where year" clause.
-     *
-     * @param \Illuminate\Database\Query\Builder $query
-     * @param array                              $where
-     *
-     * @return string
-     */
-    protected function whereYear(Builder $query, $where)
-    {
-        return $this->dateBasedWhere('year', $query, $where);
-    }
-
-    /**
-     * Compile a date based where clause.
-     *
-     * @param string                             $type
-     * @param \Illuminate\Database\Query\Builder $query
-     * @param array                              $where
-     *
-     * @return string
-     */
-    protected function dateBasedWhere($type, Builder $query, $where)
-    {
-        $value = $this->parameter($where['value']);
-
-        return $type.'('.$this->wrap($where['column']).') '.$where['operator'].' '.$value;
-    }
-
-    /**
-     * Compile the "having" portions of the query.
-     *
-     * @param \Illuminate\Database\Query\Builder $query
-     * @param array                              $havings
-     *
-     * @return string
-     */
-    protected function compileHavings(Builder $query, $havings)
-    {
-        $cypher = implode(' ', array_map([$this, 'compileHaving'], $havings));
-
-        return 'with '.$this->removeLeadingBoolean($cypher);
+        return 'with ' . $this->removeLeadingBoolean($cypher);
     }
 
     /**
@@ -724,7 +639,7 @@ class CypherGrammar extends Grammar
         // without doing any more processing on it. Otherwise, we will compile the
         // clause into Cypher based on the components that make it up from builder.
         if ($having['type'] === 'raw') {
-            return $having['boolean'].' '.$having['cypher'];
+            return $having['boolean'] . ' ' . $having['cypher'];
         }
 
         return $this->compileBasicHaving($having);
@@ -743,7 +658,7 @@ class CypherGrammar extends Grammar
 
         $parameter = $this->parameter($having['value']);
 
-        return $having['boolean'].' '.$column.' '.$having['operator'].' '.$parameter;
+        return $having['boolean'] . ' ' . $column . ' ' . $having['operator'] . ' ' . $parameter;
     }
 
     /**
@@ -753,11 +668,11 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    public function compileDelete(Builder $query, $isRelationship = false, $shouldKeepEndNode = false)
+    public function compileDelete($query, $isRelationship = false, $shouldKeepEndNode = false)
     {
         // We always need the MATCH clause in our Cypher which
         // is the responsibility of compiling the From component.
-        $matchComponent = $this->compileComponents($query, array('matches'));
+        $matchComponent = $this->compileComponents($query, ['matches']);
         $matchCypher = $matchComponent['matches'];
 
         $where = is_array($query->wheres) ? $this->compileWheres($query) : '';
@@ -774,10 +689,11 @@ class CypherGrammar extends Grammar
             // the start node, only the relationship and optionally
             // the end node so we will clear whatever identifier we had.
             $returnIdentifiers = '';
+
             foreach ($query->matches as $match) {
                 // determine whether we should also delete the end node
-                if (!$shouldKeepEndNode) {
-                    $returnIdentifiers .= $match['related']['node'].', ';
+                if (! $shouldKeepEndNode) {
+                    $returnIdentifiers .= $match['related']['node'] . ', ';
                 }
 
                 $returnIdentifiers .= $this->getRelationIdentifier($match['relationship'], $match['related']['node']);
@@ -785,28 +701,27 @@ class CypherGrammar extends Grammar
 
             $matchCypher .= $where;
         } else {
-
             // when deleting the start node must not have any relations left
             // so when asked to delete the start node we'll add an
             // OPTIONAL MATCH (n)-[r]-() where n is the node
             // we're matching in this query.
-            $matchCypher .= $where.' OPTIONAL MATCH ('.$query->modelAsNode().')-[r]-()';
+            $matchCypher .= $where . ' OPTIONAL MATCH (' . $query->modelAsNode() . ')-[r]-()';
             $returnIdentifiers .= ', r';
         }
 
-        return "$matchCypher DELETE $returnIdentifiers";
+        return "{$matchCypher} DELETE {$returnIdentifiers}";
     }
 
-    public function compileWith(Builder $query, $with)
+    public function compileWith($query, $with)
     {
         $parts = [];
 
-        if (!empty($with)) {
+        if (! empty($with)) {
             foreach ($with as $identifier => $part) {
-                $parts[] = (!is_numeric($identifier)) ? "$identifier AS $part" : $part;
+                $parts[] = (! is_numeric($identifier)) ? "{$identifier} AS {$part}" : $part;
             }
 
-            return 'WITH '.implode(', ', $parts);
+            return 'WITH ' . implode(', ', $parts);
         }
     }
 
@@ -818,7 +733,7 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    public function compileInsert(Builder $query, array $values)
+    public function compileInsert($query, array $values)
     {
         /*
          *  Essentially we will force every insert to be treated as a batch insert which
@@ -829,14 +744,14 @@ class CypherGrammar extends Grammar
          * CREATE (:Wiz {fiz: 'foo', biz: 'boo'}). (:Wiz {fiz: 'morefoo', biz: 'moreboo'})
          */
 
-        if (!is_array($query->from)) {
-            $query->from = array($query->from);
+        if (! is_array($query->from)) {
+            $query->from = [$query->from];
         }
 
         $label = $this->prepareLabels($query->from);
 
-        if (!is_array(reset($values))) {
-            $values = array($values);
+        if (! is_array(reset($values))) {
+            $values = [$values];
         }
 
         // Prepare the values to be sent into the entities factory as
@@ -844,54 +759,55 @@ class CypherGrammar extends Grammar
         $values = array_map(function ($entity) use ($label) {
             return ['label' => $label, 'bindings' => $entity];
         }, $values);
+
         // We need to build a list of parameter place-holders of values that are bound to the query.
-        return 'CREATE '.$this->prepareEntities($values);
+        return 'CREATE ' . $this->prepareEntities($values);
     }
 
-    public function compileMatchRelationship(Builder $query, $attributes)
+    public function compileMatchRelationship($query, $attributes)
     {
         $startKey = $attributes['start']['id']['key'];
         $startNode = $this->modelAsNode($attributes['start']['label']);
         $startLabel = $this->prepareLabels($attributes['start']['label']);
 
         if ($startKey === 'id') {
-            $startKey = 'id('.$startNode.')';
+            $startKey = 'id(' . $startNode . ')';
             $startId = (int) $attributes['start']['id']['value'];
         } else {
-            $startKey = $startNode.'.'.$startKey;
-            $startId = '"'.addslashes($attributes['start']['id']['value']).'"';
+            $startKey = $startNode . '.' . $startKey;
+            $startId = '"' . addslashes($attributes['start']['id']['value']) . '"';
         }
 
-        $startCondition = $startKey.'='.$startId;
+        $startCondition = $startKey . '=' . $startId;
 
-        $query = "MATCH ($startNode$startLabel)";
+        $query = "MATCH ({$startNode}{$startLabel})";
 
-         // we account for no-end relationships.
+        // we account for no-end relationships.
         if (isset($attributes['end'])) {
             $endKey = $attributes['end']['id']['key'];
-            $endNode = 'rel_'.$this->modelAsNode($attributes['label']);
+            $endNode = 'rel_' . $this->modelAsNode($attributes['label']);
             $endLabel = $this->prepareLabels($attributes['end']['label']);
 
             if ($attributes['end']['id']['value']) {
                 if ($endKey === 'id') {
                     // when it's 'id' it has to be numeric
-                    $endKey = 'id('.$endNode.')';
+                    $endKey = 'id(' . $endNode . ')';
                     $endId = (int) $attributes['end']['id']['value'];
                 } else {
-                    $endKey = $endNode.'.'.$endKey;
-                    $endId = '"'.addslashes($attributes['end']['id']['value']).'"';
+                    $endKey = $endNode . '.' . $endKey;
+                    $endId = '"' . addslashes($attributes['end']['id']['value']) . '"';
                 }
             }
 
-            $endCondition = (!empty($endId)) ? $endKey.'='.$endId : '';
+            $endCondition = (! empty($endId)) ? $endKey . '=' . $endId : '';
 
-            $query .= ", ($endNode$endLabel)";
+            $query .= ", ({$endNode}{$endLabel})";
         }
 
-        $query .= " WHERE $startCondition";
+        $query .= " WHERE {$startCondition}";
 
-        if (!empty($endCondition)) {
-            $query .= " AND $endCondition";
+        if (! empty($endCondition)) {
+            $query .= " AND {$endCondition}";
         }
 
         return $query;
@@ -905,17 +821,19 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    public function compileRelationship(Builder $query, $attributes, $addEndLabel = false)
+    public function compileRelationship($query, $attributes, $addEndLabel = false)
     {
         $startNode = $this->modelAsNode($attributes['start']['label']);
-        $endNode = 'rel_'.$this->modelAsNode($attributes['label']);
+        $endNode = 'rel_' . $this->modelAsNode($attributes['label']);
 
         // support crafting relationships for unknown end nodes,
         // i.e. fetching the relationships of a certain type
         // for a given start node.
         $endLabel = 'r';
+
         if (isset($attributes['end'])) {
             $endLabel = $this->prepareLabels($attributes['end']['label']);
+
             if ($addEndLabel) {
                 $endNode .= $endLabel;
             }
@@ -923,8 +841,8 @@ class CypherGrammar extends Grammar
 
         $query = $this->craftRelation(
             $startNode,
-            'r:'.$attributes['label'],
-            '('.$endNode.')',
+            'r:' . $attributes['label'],
+            '(' . $endNode . ')',
             $endLabel,
             $attributes['direction'],
             true
@@ -932,39 +850,40 @@ class CypherGrammar extends Grammar
 
         $properties = $attributes['properties'];
 
-        if (!empty($properties)) {
+        if (! empty($properties)) {
             foreach ($properties as $key => $value) {
                 unset($properties[$key]);
+
                 // we do not accept IDs for relations
                 if ($key === 'id') {
                     continue;
                 }
-                $properties[] = 'r.'.$key.' = '.$this->valufy($value);
+                $properties[] = 'r.' . $key . ' = ' . $this->valufy($value);
             }
 
-            $query .= ' SET '.implode(', ', $properties);
+            $query .= ' SET ' . implode(', ', $properties);
         }
 
         return $query;
     }
 
-    public function compileCreateRelationship(Builder $query, $attributes)
+    public function compileCreateRelationship($query, $attributes)
     {
         $match = $this->compileMatchRelationship($query, $attributes);
         $relationQuery = $this->compileRelationship($query, $attributes);
-        $query = "$match MERGE $relationQuery";
+        $query = "{$match} MERGE {$relationQuery}";
         $startIdentifier = $this->modelAsNode($attributes['start']['label']);
-        $endIdentifier = 'rel_'.$this->modelAsNode($attributes['label']);
-        $query .= " RETURN r,$startIdentifier,$endIdentifier";
+        $endIdentifier = 'rel_' . $this->modelAsNode($attributes['label']);
+        $query .= " RETURN r,{$startIdentifier},{$endIdentifier}";
 
         return $query;
     }
 
-    public function compileDeleteRelationship(Builder $query, $attributes)
+    public function compileDeleteRelationship($query, $attributes)
     {
         $match = $this->compileMatchRelationship($query, $attributes);
         $relation = $this->compileRelationship($query, $attributes);
-        $query = "$match MATCH $relation DELETE r";
+        $query = "{$match} MATCH {$relation} DELETE r";
 
         return $query;
     }
@@ -974,8 +893,8 @@ class CypherGrammar extends Grammar
         $match = $this->compileMatchRelationship($builder, $attributes);
         $relation = $this->compileRelationship($builder, $attributes, true);
         $startIdentifier = $this->modelAsNode($attributes['start']['label']);
-        $endIdentifier = 'rel_'.$this->modelAsNode($attributes['label']);
-        $query = "$match MATCH $relation RETURN r,$startIdentifier,$endIdentifier";
+        $endIdentifier = 'rel_' . $this->modelAsNode($attributes['label']);
+        $query = "{$match} MATCH {$relation} RETURN r,{$startIdentifier},{$endIdentifier}";
 
         return $query;
     }
@@ -988,7 +907,7 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    public function compileCreateWith(Builder $query, $create)
+    public function compileCreateWith($query, $create)
     {
         $model = $create['model'];
         $related = $create['related'];
@@ -1017,7 +936,7 @@ class CypherGrammar extends Grammar
             $attach = $with['attach'];
             $relation = $with['relation'];
 
-            if (!is_array($values)) {
+            if (! is_array($values)) {
                 $values = (array) $values;
             }
 
@@ -1035,7 +954,7 @@ class CypherGrammar extends Grammar
                 // get a relation cypher.
                 $relations[] = $this->craftRelation(
                     $parentNode,
-                    ':'.$relation['type'],
+                    ':' . $relation['type'],
                     $this->prepareEntity(compact('label', 'bindings'), $identifier),
                     $this->modelAsNode($label),
                     $relation['direction'],
@@ -1044,7 +963,7 @@ class CypherGrammar extends Grammar
             }
 
             // Set up the query parts that are required to attach two nodes.
-            if (!empty($attach)) {
+            if (! empty($attach)) {
                 $identifier = $this->getUniqueLabel($relation['name']);
                 // return this identifier as part of the result.
                 $attachedIdsToReturn[] = $identifier;
@@ -1061,15 +980,15 @@ class CypherGrammar extends Grammar
 
                 if ($idKey === 'id') {
                     // Native Neo4j IDs are treated differently
-                    $attachments['wheres'][] = "id($identifier) IN [".implode(', ', $attach).']';
+                    $attachments['wheres'][] = "id({$identifier}) IN [" . implode(', ', $attach) . ']';
                 } else {
-                    $attachments['wheres'][] = "$identifier.$idKey IN [\"".implode('", "', $attach).'"]';
+                    $attachments['wheres'][] = "{$identifier}.{$idKey} IN [\"" . implode('", "', $attach) . '"]';
                 }
 
                 $attachments['relations'][] = $this->craftRelation(
                     $parentNode,
-                    ':'.$relation['type'],
-                    "($identifier)",
+                    ':' . $relation['type'],
+                    "({$identifier})",
                     $nodeLabel,
                     $relation['direction'],
                     $bare
@@ -1078,38 +997,41 @@ class CypherGrammar extends Grammar
         }
         // Return the Cypher representation of the query that would look something like:
         // CREATE (post:`Post` {title: '..', body: '..'})
-        $cypher = 'CREATE '.$entity;
+        $cypher = 'CREATE ' . $entity;
+
         // Then we add the records that we need to create as such:
         // (post)-[:PHOTO]->(:`Photo` {url: ''}), (post)-[:VIDEO]->(:`Video` {title: '...'})
-        if (!empty($relations)) {
-            $cypher .= ', '.implode(', ', $relations);
+        if (! empty($relations)) {
+            $cypher .= ', ' . implode(', ', $relations);
         }
-        // Now we add the attaching Cypher
-        if (!empty($attachments)) {
-            // Bring the parent node along with us to be used in the query further.
-            $cypher .= " WITH $parentNode";
 
-            if (!empty($createdIdsToReturn)) {
-                $cypher  .= ', '.implode(', ', $createdIdsToReturn);
+        // Now we add the attaching Cypher
+        if (! empty($attachments)) {
+            // Bring the parent node along with us to be used in the query further.
+            $cypher .= " WITH {$parentNode}";
+
+            if (! empty($createdIdsToReturn)) {
+                $cypher .= ', ' . implode(', ', $createdIdsToReturn);
             }
 
             // MATCH the related nodes that we are attaching.
-            $cypher .= ' MATCH '.implode(', ', $attachments['matches']);
+            $cypher .= ' MATCH ' . implode(', ', $attachments['matches']);
             // Set the WHERE conditions for the heart of the query.
-            $cypher .= ' WHERE '.implode(' AND ', $attachments['wheres']);
+            $cypher .= ' WHERE ' . implode(' AND ', $attachments['wheres']);
             // CREATE the relationships between matched nodes
-            $cypher .= ' MERGE'.implode(', ', $attachments['relations']);
+            $cypher .= ' MERGE' . implode(', ', $attachments['relations']);
         }
 
-        $cypher .= " RETURN $parentNode, ".implode(', ', array_merge($createdIdsToReturn, $attachedIdsToReturn));
+        $cypher .= " RETURN {$parentNode}, " . implode(', ', array_merge($createdIdsToReturn, $attachedIdsToReturn));
 
         return $cypher;
     }
 
-    public function compileAggregate(Builder $query, $aggregate)
+    public function compileAggregatcompileAgge(\Illuminate\Database\Query\Builder $query, $aggregate)
     {
         $distinct = null;
         $function = $aggregate['function'];
+
         // When calling for the distinct count we'll set the distinct flag and ask for the count function.
         if ($function == 'countDistinct') {
             $function = 'count';
@@ -1120,16 +1042,16 @@ class CypherGrammar extends Grammar
 
         // We need to format the columns to be in the form of n.property unless it is a *.
         $columns = implode(', ', array_map(function ($column) use ($node) {
-            return $column == '*' ? $column : "$node.$column";
+            return $column == '*' ? $column : "{$node}.{$column}";
         }, $aggregate['columns']));
 
-        if (isset($aggregate['percentile']) && !is_null($aggregate['percentile'])) {
+        if (isset($aggregate['percentile']) && ! is_null($aggregate['percentile'])) {
             $percentile = $aggregate['percentile'];
 
-            return "RETURN $function($columns, $percentile)";
+            return "RETURN {$function}({$columns}, {$percentile})";
         }
 
-        return "RETURN $function($distinct$columns)";
+        return "RETURN {$function}({$distinct}{$columns})";
     }
 
     /**
@@ -1141,7 +1063,7 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    public function compileUpdateLabels(Builder $query, $labels, $operation = 'add')
+    public function compileUpdateLabels($query, $labels, $operation = 'add')
     {
         if (trim(strtolower($operation)) == 'add') {
             $updateType = 'SET';
@@ -1152,7 +1074,7 @@ class CypherGrammar extends Grammar
         // keyword identifiers, also a place-holder needs to be created for each of
         // the values in the list of bindings so we can make the sets statements.
 
-        $labels = $query->modelAsNode().$this->prepareLabels($labels);
+        $labels = $query->modelAsNode() . $this->prepareLabels($labels);
 
         // Of course, update queries may also be constrained by where clauses so we'll
         // need to compile the where clauses and attach it to the query so only the
@@ -1161,9 +1083,9 @@ class CypherGrammar extends Grammar
 
         // We always need the MATCH clause in our Cypher which
         // is the responsibility of compiling the From component.
-        $match = $this->compileComponents($query, array('from'));
+        $match = $this->compileComponents($query, ['from']);
         $match = $match['from'];
 
-        return "$match $where $updateType $labels RETURN ".$query->modelAsNode();
+        return "{$match} {$where} {$updateType} {$labels} RETURN " . $query->modelAsNode();
     }
 }

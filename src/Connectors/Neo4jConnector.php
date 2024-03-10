@@ -11,21 +11,25 @@ class Neo4jConnector
     {
         $connection = new Connection($config);
 
-        switch($type)
-        {
+        switch($type) {
             case Connection::TYPE_SINGLE:
                 $client = $connection->createSingleConnectionClient($config);
+
                 break;
 
             case Connection::TYPE_MULTI:
                 $client = $connection->createMultipleConnectionsClient($config);
+
                 break;
 
             case Connection::TYPE_HA:
                 throw new \Exception('High Availability mode is not supported anymore. Please use the neo4j scheme instead');
+
                 break;
+
             default:
-                throw new Exception('Unsupported connection type '+$type);
+                throw new Exception('Unsupported connection type ' + $type);
+
                 break;
         }
 

@@ -3,8 +3,8 @@
 namespace Vinelab\NeoEloquent\Tests\Functional\AddDropLabels;
 
 use Mockery as M;
-use Vinelab\NeoEloquent\Tests\TestCase;
 use Vinelab\NeoEloquent\Eloquent\Model;
+use Vinelab\NeoEloquent\Tests\TestCase;
 
 class Labelwiz extends Model
 {
@@ -58,13 +58,13 @@ class AddDropLabelsTest extends TestCase
         $this->assertTrue($w->save());
 
         //add the label
-        $w->addLabels(array('Superuniqelabel1'));
+        $w->addLabels(['Superuniqelabel1']);
 
         $nLabels = $this->getNodeLabels($w->id);
         $this->assertTrue(in_array('Superuniqelabel1', $nLabels));
 
         //now drop the label
-        $w->dropLabels(array('Superuniqelabel1'));
+        $w->dropLabels(['Superuniqelabel1']);
 
         // get all the node's labels
         $nLabels = $this->getNodeLabels($w->id);
@@ -82,7 +82,7 @@ class AddDropLabelsTest extends TestCase
         $this->assertTrue($w->save());
 
         //add the label
-        $w->addLabels(array('Superuniqelabel3', 'Superuniqelabel4', 'a1'));
+        $w->addLabels(['Superuniqelabel3', 'Superuniqelabel4', 'a1']);
 
         // get all the node's labels
         $nLabels = $this->getNodeLabels($w->id);
@@ -92,7 +92,7 @@ class AddDropLabelsTest extends TestCase
         $this->assertTrue(in_array('a1', $nLabels));
 
         //now drop one of the labels
-        $w->dropLabels(array('a1'));
+        $w->dropLabels(['a1']);
 
         // get all the node's labels
         $nLabels = $this->getNodeLabels($w->id);
@@ -101,7 +101,7 @@ class AddDropLabelsTest extends TestCase
         $this->assertTrue(in_array('Superuniqelabel4', $nLabels));
 
         //now drop remaining labels
-        $w->dropLabels(array('Superuniqelabel3', 'Superuniqelabel4'));
+        $w->dropLabels(['Superuniqelabel3', 'Superuniqelabel4']);
         // get all the node's labels
         $nLabels = $this->getNodeLabels($w->id);
         $this->assertFalse(in_array('a1', $nLabels));
@@ -120,9 +120,9 @@ class AddDropLabelsTest extends TestCase
         $this->assertTrue($w->save());
 
         //add the label
-        $w->addLabels(array('Superuniqelabel5'));
-        $w->addLabels(array('Superuniqelabel6'));
-        $w->addLabels(array('Superuniqelabel7'));
+        $w->addLabels(['Superuniqelabel5']);
+        $w->addLabels(['Superuniqelabel6']);
+        $w->addLabels(['Superuniqelabel7']);
 
         // get all the node's labels
         $nLabels = $this->getNodeLabels($w->id);
@@ -132,9 +132,9 @@ class AddDropLabelsTest extends TestCase
         $this->assertTrue(in_array('Superuniqelabel7', $nLabels));
 
         //now drop repeatedly
-        $w->dropLabels(array('Superuniqelabel5'));
-        $w->dropLabels(array('Superuniqelabel6'));
-        $w->dropLabels(array('Superuniqelabel7'));
+        $w->dropLabels(['Superuniqelabel5']);
+        $w->dropLabels(['Superuniqelabel6']);
+        $w->dropLabels(['Superuniqelabel7']);
 
         // get all the node's labels
         $nLabels = $this->getNodeLabels($w->id);
@@ -171,14 +171,14 @@ class AddDropLabelsTest extends TestCase
         $this->assertTrue($w3->save());
 
         //add the label in sequence
-        $w1->addLabels(array('Superuniqelabel8'));
-        $w2->addLabels(array('Superuniqelabel8'));
-        $w3->addLabels(array('Superuniqelabel8'));
+        $w1->addLabels(['Superuniqelabel8']);
+        $w2->addLabels(['Superuniqelabel8']);
+        $w3->addLabels(['Superuniqelabel8']);
 
         //add the array of labels
-        $w1->addLabels(array('Superuniqelabel9', 'Superuniqelabel10'));
-        $w2->addLabels(array('Superuniqelabel9', 'Superuniqelabel10'));
-        $w3->addLabels(array('Superuniqelabel9', 'Superuniqelabel10'));
+        $w1->addLabels(['Superuniqelabel9', 'Superuniqelabel10']);
+        $w2->addLabels(['Superuniqelabel9', 'Superuniqelabel10']);
+        $w3->addLabels(['Superuniqelabel9', 'Superuniqelabel10']);
 
         // get all the node's labels
         $nLabels = $this->getNodeLabels($w1->id);
@@ -200,14 +200,14 @@ class AddDropLabelsTest extends TestCase
         $this->assertTrue(in_array('Superuniqelabel10', $nLabels));
 
         //drop the label in sequence
-        $w1->dropLabels(array('Superuniqelabel8'));
-        $w2->dropLabels(array('Superuniqelabel8'));
-        $w3->dropLabels(array('Superuniqelabel8'));
+        $w1->dropLabels(['Superuniqelabel8']);
+        $w2->dropLabels(['Superuniqelabel8']);
+        $w3->dropLabels(['Superuniqelabel8']);
 
         //drop the array of labels
-        $w1->dropLabels(array('Superuniqelabel9', 'Superuniqelabel10'));
-        $w2->dropLabels(array('Superuniqelabel9', 'Superuniqelabel10'));
-        $w3->dropLabels(array('Superuniqelabel9', 'Superuniqelabel10'));
+        $w1->dropLabels(['Superuniqelabel9', 'Superuniqelabel10']);
+        $w2->dropLabels(['Superuniqelabel9', 'Superuniqelabel10']);
+        $w3->dropLabels(['Superuniqelabel9', 'Superuniqelabel10']);
 
         // get all the node's labels
         $nLabels = $this->getNodeLabels($w1->id);
@@ -259,14 +259,14 @@ class AddDropLabelsTest extends TestCase
         $f3 = Labelwiz::find($w3->id);
 
         //add the label in sequence
-        $f1->addLabels(array('Superuniqelabel11'));
-        $f2->addLabels(array('Superuniqelabel11'));
-        $f3->addLabels(array('Superuniqelabel11'));
+        $f1->addLabels(['Superuniqelabel11']);
+        $f2->addLabels(['Superuniqelabel11']);
+        $f3->addLabels(['Superuniqelabel11']);
 
         //add the array of labels
-        $f1->addLabels(array('Superuniqelabel12', 'Superuniqelabel13'));
-        $f2->addLabels(array('Superuniqelabel12', 'Superuniqelabel13'));
-        $f3->addLabels(array('Superuniqelabel12', 'Superuniqelabel13'));
+        $f1->addLabels(['Superuniqelabel12', 'Superuniqelabel13']);
+        $f2->addLabels(['Superuniqelabel12', 'Superuniqelabel13']);
+        $f3->addLabels(['Superuniqelabel12', 'Superuniqelabel13']);
 
         // get all the node's labels
         $nLabels = $this->getNodeLabels($f1->id);
@@ -288,14 +288,14 @@ class AddDropLabelsTest extends TestCase
         $this->assertTrue(in_array('Superuniqelabel13', $nLabels));
 
         //drop the label in sequence
-        $f1->dropLabels(array('Superuniqelabel11'));
-        $f2->dropLabels(array('Superuniqelabel11'));
-        $f3->dropLabels(array('Superuniqelabel11'));
+        $f1->dropLabels(['Superuniqelabel11']);
+        $f2->dropLabels(['Superuniqelabel11']);
+        $f3->dropLabels(['Superuniqelabel11']);
 
         //drop the array of labels
-        $f1->dropLabels(array('Superuniqelabel12', 'Superuniqelabel13'));
-        $f2->dropLabels(array('Superuniqelabel12', 'Superuniqelabel13'));
-        $f3->dropLabels(array('Superuniqelabel12', 'Superuniqelabel13'));
+        $f1->dropLabels(['Superuniqelabel12', 'Superuniqelabel13']);
+        $f2->dropLabels(['Superuniqelabel12', 'Superuniqelabel13']);
+        $f3->dropLabels(['Superuniqelabel12', 'Superuniqelabel13']);
 
         // get all the node's labels
         $nLabels = $this->getNodeLabels($f1->id);

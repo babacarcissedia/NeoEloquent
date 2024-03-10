@@ -3,8 +3,8 @@
 namespace Vinelab\NeoEloquent\Tests\Functional\Aggregate;
 
 use Vinelab\NeoEloquent\Query\Builder;
-use Vinelab\NeoEloquent\Tests\TestCase;
 use Vinelab\NeoEloquent\Eloquent\Model;
+use Vinelab\NeoEloquent\Tests\TestCase;
 use Vinelab\NeoEloquent\Query\Grammars\CypherGrammar;
 
 class AggregateTest extends TestCase

@@ -3,13 +3,13 @@
 namespace Vinelab\NeoEloquent\Tests\Functional;
 
 use DateTime;
+use Mockery as M;
 use Carbon\Carbon;
 use Laudis\Neo4j\Types\CypherList;
-use Mockery as M;
-use Vinelab\NeoEloquent\Exceptions\ModelNotFoundException;
-use Vinelab\NeoEloquent\Tests\TestCase;
 use Vinelab\NeoEloquent\Eloquent\Model;
+use Vinelab\NeoEloquent\Tests\TestCase;
 use Vinelab\NeoEloquent\Eloquent\SoftDeletes;
+use Vinelab\NeoEloquent\Exceptions\ModelNotFoundException;
 
 class Wiz extends Model
 {
@@ -66,10 +66,10 @@ class SimpleCRUDTest extends TestCase
     {
         $u = Wiz::create([]);
         $id = (string) $u->id;
-        $found = Wiz::where('id', "$id")->first();
+        $found = Wiz::where('id', "{$id}")->first();
         $this->assertEquals($found->toArray(), $u->toArray());
 
-        $foundAgain = Wiz::find("$id");
+        $foundAgain = Wiz::find("{$id}");
         $this->assertEquals($foundAgain->toArray(), $u->toArray());
     }
 

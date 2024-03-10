@@ -2,11 +2,10 @@
 
 namespace Vinelab\NeoEloquent\Eloquent;
 
-use Faker\Generator as Faker;
-use Illuminate\Database\Eloquent\Factory;
-use Illuminate\Database\Eloquent\FactoryBuilder;
-use Symfony\Component\Finder\Finder;
 use ArrayAccess;
+use Faker\Generator as Faker;
+use Symfony\Component\Finder\Finder;
+use Illuminate\Database\Eloquent\Factory;
 
 /**
  * Class NeoEloquentFactory
@@ -19,14 +18,14 @@ class NeoEloquentFactory implements ArrayAccess
      * @var array
      */
     protected $states = [];
-    
+
     /**
      * The Faker instance for the builder.
      *
      * @var \Faker\Generator
      */
     protected $faker;
-    
+
     /**
      * Create a new factory instance.
      *
@@ -37,7 +36,7 @@ class NeoEloquentFactory implements ArrayAccess
     {
         $this->faker = $faker;
     }
-    
+
     /**
      * Create a new factory container.
      *
@@ -48,10 +47,10 @@ class NeoEloquentFactory implements ArrayAccess
     public static function construct(Faker $faker, $pathToFactories = null)
     {
         $pathToFactories = $pathToFactories ?: database_path('factories');
-        
+
         return (new static($faker))->load($pathToFactories);
     }
-    
+
     /**
      * Define a class with a given short-name.
      *
@@ -64,7 +63,7 @@ class NeoEloquentFactory implements ArrayAccess
     {
         return $this->define($class, $attributes, $name);
     }
-    
+
     /**
      * Define a class with a given set of attributes.
      *
@@ -76,10 +75,10 @@ class NeoEloquentFactory implements ArrayAccess
     public function define($class, callable $attributes, $name = 'default')
     {
         $this->definitions[$class][$name] = $attributes;
-        
+
         return $this;
     }
-    
+
     /**
      * Define a state with a given set of attributes.
      *
@@ -91,10 +90,10 @@ class NeoEloquentFactory implements ArrayAccess
     public function state($class, $state, $attributes)
     {
         $this->states[$class][$state] = $attributes;
-        
+
         return $this;
     }
-    
+
     /**
      * Create a builder for the given model.
      *
@@ -106,7 +105,7 @@ class NeoEloquentFactory implements ArrayAccess
     {
         return new NeoFactoryBuilder($class, $name, $this->definitions, $this->states, $this->faker);
     }
-    
+
     /**
      * Create an instance of the given model and type and persist it to the database.
      *
@@ -119,7 +118,7 @@ class NeoEloquentFactory implements ArrayAccess
     {
         return $this->of($class, $name)->create($attributes);
     }
-    
+
     /**
      * Create an instance of the given model.
      *
@@ -131,7 +130,7 @@ class NeoEloquentFactory implements ArrayAccess
     {
         return $this->of($class)->make($attributes);
     }
-    
+
     /**
      * Create an instance of the given model and type.
      *
@@ -144,7 +143,7 @@ class NeoEloquentFactory implements ArrayAccess
     {
         return $this->of($class, $name)->make($attributes);
     }
-    
+
     /**
      * Get the raw attribute array for a given named model.
      *
@@ -157,7 +156,7 @@ class NeoEloquentFactory implements ArrayAccess
     {
         return $this->raw($class, $attributes, $name);
     }
-    
+
     /**
      * Get the raw attribute array for a given model.
      *
@@ -173,7 +172,7 @@ class NeoEloquentFactory implements ArrayAccess
             $attributes
         );
     }
-    
+
     /**
      * Load factories from path.
      *
@@ -183,16 +182,16 @@ class NeoEloquentFactory implements ArrayAccess
     public function load($path)
     {
         $factory = $this;
-        
+
         if (is_dir($path)) {
             foreach (Finder::create()->files()->name('*.php')->in($path) as $file) {
                 require $file->getRealPath();
             }
         }
-        
+
         return $factory;
     }
-    
+
     /**
      * Determine if the given offset exists.
      *
@@ -203,7 +202,7 @@ class NeoEloquentFactory implements ArrayAccess
     {
         return isset($this->definitions[$offset]);
     }
-    
+
     /**
      * Get the value of the given offset.
      *
@@ -214,7 +213,7 @@ class NeoEloquentFactory implements ArrayAccess
     {
         return $this->make($offset);
     }
-    
+
     /**
      * Set the given offset to the given value.
      *
@@ -226,7 +225,7 @@ class NeoEloquentFactory implements ArrayAccess
     {
         return $this->define($offset, $value);
     }
-    
+
     /**
      * Unset the value at the given offset.
      *

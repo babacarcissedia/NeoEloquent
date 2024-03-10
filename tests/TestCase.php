@@ -2,12 +2,12 @@
 
 namespace Vinelab\NeoEloquent\Tests;
 
-use Laudis\Neo4j\Contracts\ClientInterface;
-use Laudis\Neo4j\Databags\SummarizedResult;
 use Mockery as M;
 use Vinelab\NeoEloquent\Connection;
-use PHPUnit\Framework\TestCase as PHPUnit;
 use Vinelab\NeoEloquent\Eloquent\Model;
+use PHPUnit\Framework\TestCase as PHPUnit;
+use Laudis\Neo4j\Contracts\ClientInterface;
+use Laudis\Neo4j\Databags\SummarizedResult;
 
 class Stub extends Model
 {
@@ -95,7 +95,7 @@ class TestCase extends PHPUnit
         $connection = $this->getConnectionWithConfig('neo4j');
         $client = $connection->getClient();
         /** @var SummarizedResult $result */
-        $result = $client->run("MATCH (n) WHERE id(n)=$id RETURN n");
+        $result = $client->run("MATCH (n) WHERE id(n)={$id} RETURN n");
 
         return $result->first()->first()->getValue();
     }

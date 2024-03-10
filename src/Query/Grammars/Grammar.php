@@ -4,15 +4,16 @@ namespace Vinelab\NeoEloquent\Query\Grammars;
 
 use DateTime;
 use Carbon\Carbon;
+use Illuminate\Support\Arr;
 use Vinelab\NeoEloquent\Query\Builder;
 use Vinelab\NeoEloquent\Query\Expression;
 
-abstract class Grammar
+abstract class Grammar extends \Illuminate\Database\Query\Grammars\Grammar
 {
     /**
      * The Query builder instance.
      *
-     * @var Vinelab\NeoEloquent\Query\Builder
+     * @var \Vinelab\NeoEloquent\Query\Builder
      */
     protected $query;
 
@@ -78,7 +79,6 @@ abstract class Grammar
      */
     public function parameter($value)
     {
-
         // Validate whether the requested field is the
         // node id, in that case id(n) doesn't work as
         // a placeholder so we transform it to the id replacement instead.
@@ -99,7 +99,7 @@ abstract class Grammar
             $property = explode('.', $property)[1];
         }
 
-        return '$'.$property;
+        return '$' . $property;
     }
 
     /**
@@ -112,12 +112,8 @@ abstract class Grammar
      */
     public function prepareLabels($labels)
     {
-        if (is_array($labels)) {
-            // get the labels prepared and back to a string imploded by : they go.
-            $labels = implode('', array_map(array($this, 'wrapLabel'), $labels));
-        }
-
-        return $labels;
+        // get the labels prepared and back to a string imploded by : they go.
+        return implode('', array_map([$this, 'wrapLabel'], Arr::wrap($labels)));
     }
 
     /**
@@ -131,7 +127,7 @@ abstract class Grammar
     {
         // every label must begin with a ':' so we need to check
         // and reformat if need be.
-        return trim(':`'.preg_replace('/^:/', '', $label).'`');
+        return trim(':`' . preg_replace('/^:/', '', $label) . '`');
     }
 
     /**
@@ -144,7 +140,7 @@ abstract class Grammar
      */
     public function prepareRelation($relation, $related)
     {
-        return $this->getRelationIdentifier($relation, $related).":{$relation}";
+        return $this->getRelationIdentifier($relation, $related) . ":{$relation}";
     }
 
     /**
@@ -157,7 +153,7 @@ abstract class Grammar
      */
     public function getRelationIdentifier($relation, $related)
     {
-        return 'rel_'.mb_strtolower($relation).'_'.$related;
+        return 'rel_' . mb_strtolower($relation) . '_' . $related;
     }
 
     /**
@@ -195,10 +191,10 @@ abstract class Grammar
         // different: id(n) instead of n.id
 
         if ($value == 'id') {
-            return 'id('.$this->query->modelAsNode().')';
+            return 'id(' . $this->query->modelAsNode() . ')';
         }
 
-        return $this->query->modelAsNode().'.'.$value;
+        return $this->query->modelAsNode() . '.' . $value;
     }
 
     /**
@@ -214,7 +210,7 @@ abstract class Grammar
             return $value;
         }
 
-        return '"'.str_replace('"', '""', $value).'"';
+        return '"' . str_replace('"', '""', $value) . '"';
     }
 
     /**
@@ -242,7 +238,7 @@ abstract class Grammar
         $arrayValue = true;
 
         // we'll only deal with arrays so let's turn it into one if it isn't
-        if (!is_array($values)) {
+        if (! is_array($values)) {
             $arrayValue = false;
             $values = [$values];
         }
@@ -259,7 +255,7 @@ abstract class Grammar
             // except when they're strings, we need to
             // escape wrap them.
             if (is_string($value)) {
-                $value = "'".addslashes($value)."'";
+                $value = "'" . addslashes($value) . "'";
             }
             // In order to support boolean value types and not have PHP convert them to their
             // corresponding string values, we'll have to handle boolean values and add their literal string representation.
@@ -268,11 +264,10 @@ abstract class Grammar
             }
 
             return $value;
-
         }, $values);
 
         // stringify them.
-        return $arrayValue ? '['.implode(',', $values).']' : implode(', ', $values);
+        return $arrayValue ? '[' . implode(',', $values) . ']' : implode(', ', $values);
     }
 
     /**
@@ -296,8 +291,8 @@ abstract class Grammar
         // When this is a related node we'll just prepend it with 'with_' that way we avoid
         // clashing node models in the cases like using recursive model relations.
         // @see https://github.com/Vinelab/NeoEloquent/issues/7
-        if (!is_null($relation)) {
-            $labels = 'with_'.$relation.'_'.$labels;
+        if (! is_null($relation)) {
+            $labels = 'with_' . $relation . '_' . $labels;
         }
 
         return mb_strtolower($labels);
@@ -322,15 +317,17 @@ abstract class Grammar
     {
         // If we have id(n) we're removing () and keeping idn
         $column = preg_replace('/[(|)]/', '', $column);
+
         // Check whether the column is still id so that we transform it to the form id(n) and then
         // recursively calling ourself to reformat accordingly.
-        if ($column == 'id') {
-            $from = (!is_null($this->query)) ? $this->query->from : null;
-            $column = $this->getIdReplacement('id('.$this->modelAsNode($from).')');
-        }
+        //        if ($column == 'id') {
+        //            $from = (!is_null($this->query)) ? $this->query->from : null;
+        //            $column = $this->getIdReplacement('id('.$this->modelAsNode($from).')');
+        //        }
         // When it's a form of node.attribute we'll just remove the '.' so that
         // we get a consistent form of binding key/value pairs.
-        elseif (strpos($column, '.')) {
+        //        else
+        if (strpos($column, '.')) {
             return str_replace('.', '', $column);
         }
 
@@ -366,12 +363,13 @@ abstract class Grammar
                 $identifier = $this->modelAsNode($entity['label']);
             }
 
-            $label = $identifier.$label;
+            $label = $identifier . $label;
         }
 
         $bindings = $entity['bindings'];
 
         $properties = [];
+
         foreach ($bindings as $key => $value) {
             // From the Neo4j docs:
             //  "NULL is not a valid property value. NULLs can instead be modeled by the absence of a key."
@@ -382,10 +380,10 @@ abstract class Grammar
 
             $key = $this->propertize($key);
             $value = $this->valufy($value);
-            $properties[] = "$key: $value";
+            $properties[] = "{$key}: {$value}";
         }
 
-        return "($label { ".implode(', ', $properties).'})';
+        return "({$label} { " . implode(', ', $properties) . '})';
     }
 
     /**
@@ -436,7 +434,7 @@ abstract class Grammar
      */
     public function getUniqueLabel($label)
     {
-        return $label.$this->labelPostfix.uniqid();
+        return $label . $this->labelPostfix . uniqid();
     }
 
     /**

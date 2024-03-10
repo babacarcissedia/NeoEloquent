@@ -3,9 +3,9 @@
 namespace Vinelab\NeoEloquent\Tests\Functional\Relations\HyperMorphTo;
 
 use Mockery as M;
-use Vinelab\NeoEloquent\Exceptions\ModelNotFoundException;
-use Vinelab\NeoEloquent\Tests\TestCase;
 use Vinelab\NeoEloquent\Eloquent\Model;
+use Vinelab\NeoEloquent\Tests\TestCase;
+use Vinelab\NeoEloquent\Exceptions\ModelNotFoundException;
 
 class PolymorphicHyperMorphToTest extends TestCase
 {
@@ -139,6 +139,7 @@ class PolymorphicHyperMorphToTest extends TestCase
 
         // Comment on post and video
         $postComments = $postCommentor->comments($post)->attach([$commentOnPost->id, $anotherCommentOnPost->id]);
+
         foreach ($postComments as $comment) {
             $this->assertInstanceOf('Vinelab\NeoEloquent\Eloquent\Edges\HyperEdge', $comment);
             $this->assertInstanceOf('Vinelab\NeoEloquent\Eloquent\Edges\EdgeOut', $comment->left());
@@ -147,6 +148,7 @@ class PolymorphicHyperMorphToTest extends TestCase
         }
 
         $videoComments = $videoCommentor->comments($video)->attach([$commentOnVideo->id, $anotherCommentOnVideo->id]);
+
         foreach ($videoComments as $comment) {
             $this->assertInstanceOf('Vinelab\NeoEloquent\Eloquent\Edges\HyperEdge', $comment);
             $this->assertInstanceOf('Vinelab\NeoEloquent\Eloquent\Edges\EdgeOut', $comment->left());
@@ -208,6 +210,7 @@ class PolymorphicHyperMorphToTest extends TestCase
 
         // Comment on post and video
         $postComments = $postCommentor->comments($post)->attach([$commentOnPost, $anotherCommentOnPost]);
+
         foreach ($postComments as $comment) {
             $this->assertInstanceOf('Vinelab\NeoEloquent\Eloquent\Edges\HyperEdge', $comment);
             $this->assertInstanceOf('Vinelab\NeoEloquent\Eloquent\Edges\EdgeOut', $comment->left());
@@ -216,6 +219,7 @@ class PolymorphicHyperMorphToTest extends TestCase
         }
 
         $videoComments = $videoCommentor->comments($video)->attach([$commentOnVideo, $anotherCommentOnVideo]);
+
         foreach ($videoComments as $comment) {
             $this->assertInstanceOf('Vinelab\NeoEloquent\Eloquent\Edges\HyperEdge', $comment);
             $this->assertInstanceOf('Vinelab\NeoEloquent\Eloquent\Edges\EdgeOut', $comment->left());
@@ -397,6 +401,7 @@ class PolymorphicHyperMorphToTest extends TestCase
         $videoComment = $videoCommentor->comments($video)->attach($commentOnVideo);
 
         $post = Post::find($post->id);
+
         foreach ($post->comments as $comment) {
             $this->assertInstanceOf('Vinelab\NeoEloquent\Tests\Functional\Relations\HyperMorphTo\Comment', $comment);
             $this->assertTrue($comment->exists);
@@ -405,6 +410,7 @@ class PolymorphicHyperMorphToTest extends TestCase
         }
 
         $video = Video::find($video->id);
+
         foreach ($video->comments as $comment) {
             $this->assertInstanceOf('Vinelab\NeoEloquent\Tests\Functional\Relations\HyperMorphTo\Comment', $comment);
             $this->assertTrue($comment->exists);
@@ -432,6 +438,7 @@ class PolymorphicHyperMorphToTest extends TestCase
         $postRelations = $post->getRelations();
         $this->assertArrayHasKey('comments', $postRelations);
         $this->assertCount(1, $postRelations['comments']);
+
         foreach ($postRelations['comments'] as $comment) {
             $this->assertInstanceOf('Vinelab\NeoEloquent\Tests\Functional\Relations\HyperMorphTo\Comment', $comment);
             $this->assertTrue($comment->exists);
@@ -446,6 +453,7 @@ class PolymorphicHyperMorphToTest extends TestCase
         $videoRelations = $video->getRelations();
         $this->assertArrayHasKey('comments', $videoRelations);
         $this->assertCount(1, $videoRelations['comments']);
+
         foreach ($videoRelations['comments'] as $comment) {
             $this->assertInstanceOf('Vinelab\NeoEloquent\Tests\Functional\Relations\HyperMorphTo\Comment', $comment);
             $this->assertTrue($comment->exists);

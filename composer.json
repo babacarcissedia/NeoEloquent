@@ -16,7 +16,9 @@
         }
     ],
     "scripts": {
-      "analyze": "./vendor/bin/phpstan analyse"
+      "analyze": "./vendor/bin/phpstan analyse",
+        "lint": "tools/php-cs-fixer/vendor/bin/php-cs-fixer fix --dry-run",
+        "lint:fix": "tools/php-cs-fixer/vendor/bin/php-cs-fixer fix"
     },
     "require": {
         "php": ">=7.4",

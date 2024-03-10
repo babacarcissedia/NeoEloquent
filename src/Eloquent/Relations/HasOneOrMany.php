@@ -3,11 +3,11 @@
 namespace Vinelab\NeoEloquent\Eloquent\Relations;
 
 use Illuminate\Support\Str;
+use Vinelab\NeoEloquent\Eloquent\Model;
 use Vinelab\NeoEloquent\Eloquent\Builder;
 use Vinelab\NeoEloquent\Eloquent\Collection;
 use Vinelab\NeoEloquent\Eloquent\Edges\Edge;
 use Vinelab\NeoEloquent\Eloquent\Edges\Finder;
-use Vinelab\NeoEloquent\Eloquent\Model;
 use Vinelab\NeoEloquent\Exceptions\ModelNotFoundException;
 
 abstract class HasOneOrMany extends Relation implements RelationInterface
@@ -18,6 +18,13 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      * @var string
      */
     protected $relation;
+
+    /**
+     * The Eloquent query builder instance.
+     *
+     * @var \Vinelab\NeoEloquent\Eloquent\Builder
+     */
+    protected $query;
 
     /**
      * The relationships finder instance.
@@ -32,6 +39,8 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      * @var string
      */
     protected $edgeDirection = 'out';
+    protected $localKey;
+    protected string $type;
 
     /**
      * Create a new has many relationship instance.
@@ -46,7 +55,7 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
         $this->relation = $relation;
         $this->type = $type;
 
-        parent::__construct($query, $parent, $type, $key);
+        parent::__construct($query, $parent);
 
         $this->finder = $this->newFinder();
     }
@@ -117,7 +126,6 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
             // }
 
             return $key ? $value->getAttribute($key) : $value->getKey();
-
         }, $models)));
     }
 
@@ -129,7 +137,7 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      *
      * @return \Vinelab\NeoEloquent\Eloquent\Edges\Edge[In,Out, etc.]
      */
-    abstract public function getEdge(Model $model = null, $attributes = array());
+    abstract public function getEdge(Model $model = null, $attributes = []);
 
     /**
      * Get the edge between the parent model and the given model or
@@ -253,7 +261,6 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
 
         /// ---- OLD IMPLEMENTATION ------ //
 
-
         // We will need the parent node placeholder so that we use it to extract related results.
         $parent = $this->query->getQuery()->modelAsNode($this->parent->nodeLabel());
 
@@ -354,7 +361,7 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      *
      * @return \Vinelab\NeoEloquent\Eloquent\Edges\Edge[In, Out, etc.]
      */
-    public function save(Model $model, array $properties = array())
+    public function save(Model $model, array $properties = [])
     {
         $model->save() ? $model : false;
         // Create a new edge relationship for both models
@@ -373,7 +380,7 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      *
      * @return array
      */
-    public function saveMany($models, array $properties = array())
+    public function saveMany($models, array $properties = [])
     {
         // We will collect the edges returned by save() in an Eloquent Database Collection
         // and return them when done.
@@ -394,7 +401,7 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      *
      * @return \Vinelab\NeoEloquent\Eloquent\Model
      */
-    public function create(array $attributes = [], array $properties = array())
+    public function create(array $attributes = [], array $properties = [])
     {
         // Here we will set the raw attributes to avoid hitting the "fill" method so
         // that we do not have to worry about a mass accessor rules blocking sets
@@ -412,7 +419,7 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      *
      * @return array
      */
-    public function createMany(array $records, array $properties = array())
+    public function createMany(array $records, array $properties = [])
     {
         $instances = new Collection();
 
@@ -459,11 +466,11 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
             // Tell the query that we only need the related model returned.
             $this->query->select($this->relation);
             // Set the parent node's placeholder as the RETURN key.
-            $this->query->getQuery()->from = array($this->relation);
+            $this->query->getQuery()->from = [$this->relation];
             // Build the MATCH ()-[]->() Cypher clause.
             $this->query->matchOut($this->parent, $this->related, $this->relation, $this->type, $this->localKey, $this->parent->{$this->localKey});
             // Add WHERE clause over the parent node's matching key = value.
-            $this->query->where($parentNode.'.'.$this->localKey, '=', $this->parent->{$this->localKey});
+            $this->query->where($parentNode . '.' . $this->localKey, '=', $this->parent->{$this->localKey});
         }
     }
 
@@ -474,7 +481,7 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      * @param array $attributes
      * @param bool  $touch
      */
-    public function attach($id, array $attributes = array(), $touch = true)
+    public function attach($id, array $attributes = [], $touch = true)
     {
         $models = $id;
 
@@ -482,8 +489,9 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
             $models = [$id];
         } elseif ($id instanceof Collection) {
             $models = $id->all();
-        } elseif (!$this->isArrayOfModels($id)) {
+        } elseif (! $this->isArrayOfModels($id)) {
             $models = $this->modelsFromIds($id);
+
             // In case someone is messing with us and passed a bunch of ids (or single id)
             // that do not exist we slap them in the face with a ModelNotFoundException.
             // There must be at least a record found as for the records that do not match
@@ -501,7 +509,7 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
             $this->touchIfTouching();
         }
 
-        return (!is_array($id)) ? $saved->first() : $saved;
+        return (! is_array($id)) ? $saved->first() : $saved;
     }
 
     /**
@@ -512,11 +520,11 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      *
      * @return int
      */
-    public function detach($id = array(), $touch = true)
+    public function detach($id = [], $touch = true)
     {
-        if (!$id instanceof Model and !$id instanceof Collection) {
+        if (! $id instanceof Model and ! $id instanceof Collection) {
             $id = $this->modelsFromIds($id);
-        } elseif (!is_array($id)) {
+        } elseif (! is_array($id)) {
             $id = [$id];
         }
 
@@ -526,6 +534,7 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
         // Prepare for a batch operation to take place so that we don't
         // overwhelm the database with many delete hits.
         $results = [];
+
         foreach ($id as $model) {
             $edge = $this->edge($model);
             $results[] = $edge->delete();
@@ -535,7 +544,7 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
             $this->touchIfTouching();
         }
 
-        return !in_array(false, $results);
+        return ! in_array(false, $results);
     }
 
     public function delete($shouldKeepEndNode = false)
@@ -553,14 +562,14 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      */
     public function sync($ids, $detaching = true)
     {
-        $changes = array(
-            'attached' => array(), 'detached' => array(), 'updated' => array(),
-        );
+        $changes = [
+            'attached' => [], 'detached' => [], 'updated' => [],
+        ];
 
         // get them as collection
         if ($ids instanceof Collection) {
             $ids = $ids->modelKeys();
-        } elseif (!is_array($ids)) {
+        } elseif (! is_array($ids)) {
             $ids = [$ids];
         }
 
@@ -597,7 +606,8 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
         // touching until after the entire operation is complete so we don't fire a
         // ton of touch operations until we are totally done syncing the records.
         $changes = array_merge(
-            $changes, $this->attachNew($records, $current, false)
+            $changes,
+            $this->attachNew($records, $current, false)
         );
 
         $this->touchIfTouching();
@@ -607,13 +617,13 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
 
     protected function attachNew(array $records, array $current, $touch = true)
     {
-        $changes = array('attached' => array(), 'updated' => array());
+        $changes = ['attached' => [], 'updated' => []];
 
         foreach ($records as $id => $attributes) {
             // If the ID is not in the list of existing pivot IDs, we will insert a new pivot
             // record, otherwise, we will just update this existing record on this joining
             // table, so that the developers will easily update these records pain free.
-            if (!in_array($id, $current)) {
+            if (! in_array($id, $current)) {
                 $this->attach($id, $attributes, $touch);
 
                 $changes['attached'][] = (int) $id;
@@ -668,11 +678,11 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      */
     protected function formatSyncList(array $records)
     {
-        $results = array();
+        $results = [];
 
         foreach ($records as $id => $attributes) {
-            if (!is_array($attributes)) {
-                list($id, $attributes) = array($attributes, array());
+            if (! is_array($attributes)) {
+                [$id, $attributes] = [$attributes, []];
             }
 
             $results[$id] = $attributes;
@@ -812,12 +822,12 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      */
     public function isArrayOfModels($models)
     {
-        if (!is_array($models)) {
+        if (! is_array($models)) {
             return false;
         }
 
         $notModels = array_filter($models, function ($model) {
-            return !$model instanceof Model;
+            return ! $model instanceof Model;
         });
 
         return empty($notModels);
@@ -860,7 +870,7 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      */
     public function getQualifiedParentKeyName()
     {
-        return $this->parent->getTable().'.'.$this->localKey;
+        return $this->parent->getTable() . '.' . $this->localKey;
     }
     /**
      * Get a new Finder instance.

@@ -63,7 +63,7 @@ class MigrateMakeCommand extends BaseCommand
 
         $modify = $this->input->getOption('create');
 
-        if (!$label && is_string($modify)) {
+        if (! $label && is_string($modify)) {
             $label = $modify;
         }
 
@@ -90,7 +90,7 @@ class MigrateMakeCommand extends BaseCommand
 
         $file = pathinfo($this->creator->create($name, $path, $label), PATHINFO_FILENAME);
 
-        $this->line("<info>Created Migration:</info> $file");
+        $this->line("<info>Created Migration:</info> {$file}");
     }
 
     /**
@@ -98,9 +98,9 @@ class MigrateMakeCommand extends BaseCommand
      */
     protected function getArguments()
     {
-        return array(
-            array('name', InputArgument::REQUIRED, 'The name of the migration'),
-        );
+        return [
+            ['name', InputArgument::REQUIRED, 'The name of the migration'],
+        ];
     }
 
     /**
@@ -108,16 +108,16 @@ class MigrateMakeCommand extends BaseCommand
      */
     protected function getOptions()
     {
-        return array(
-            array('bench', null, InputOption::VALUE_OPTIONAL, 'The workbench the migration belongs to.', null),
+        return [
+            ['bench', null, InputOption::VALUE_OPTIONAL, 'The workbench the migration belongs to.', null],
 
-            array('create', null, InputOption::VALUE_OPTIONAL, 'The label schema to be created.'),
+            ['create', null, InputOption::VALUE_OPTIONAL, 'The label schema to be created.'],
 
-            array('package', null, InputOption::VALUE_OPTIONAL, 'The package the migration belongs to.', null),
+            ['package', null, InputOption::VALUE_OPTIONAL, 'The package the migration belongs to.', null],
 
-            array('path', null, InputOption::VALUE_OPTIONAL, 'Where to store the migration.', null),
+            ['path', null, InputOption::VALUE_OPTIONAL, 'Where to store the migration.', null],
 
-            array('label', null, InputOption::VALUE_OPTIONAL, 'The label to migrate.'),
-        );
+            ['label', null, InputOption::VALUE_OPTIONAL, 'The label to migrate.'],
+        ];
     }
 }

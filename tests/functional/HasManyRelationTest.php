@@ -3,8 +3,8 @@
 namespace Vinelab\NeoEloquent\Tests\Functional\Relations\HasMany;
 
 use Mockery as M;
-use Vinelab\NeoEloquent\Tests\TestCase;
 use Vinelab\NeoEloquent\Eloquent\Model;
+use Vinelab\NeoEloquent\Tests\TestCase;
 
 class Book extends Model
 {
@@ -355,7 +355,7 @@ class HasManyRelationTest extends TestCase
         $this->assertTrue(in_array($sos->id, $edgesIds));
         $this->assertTrue(in_array($got->id, $edgesIds));
 
-        $expectedEdgesTypes = array('Storm', 'Clash', 'Game');
+        $expectedEdgesTypes = ['Storm', 'Clash', 'Game'];
 
         foreach ($edges as $key => $edge) {
             $attributes = $edge->toArray();

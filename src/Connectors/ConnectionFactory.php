@@ -2,11 +2,10 @@
 
 namespace Vinelab\NeoEloquent\Connectors;
 
+use Illuminate\Support\Arr;
 use InvalidArgumentException;
 use Vinelab\NeoEloquent\Connection;
-
 use Illuminate\Contracts\Container\Container;
-use Illuminate\Support\Arr;
 
 class ConnectionFactory
 {
@@ -23,7 +22,6 @@ class ConnectionFactory
      * @var \Illuminate\Contracts\Container\Container
      */
     protected $container;
-
 
     /**
      * Create a new connection factory instance.
@@ -104,7 +102,6 @@ class ConnectionFactory
     protected function createReadWriteConnection(array $config)
     {
         $connection = $this->createSingleConnection($this->getWriteConfig($config));
-
     }
 
     /**
@@ -158,9 +155,9 @@ class ConnectionFactory
      *
      * @param array $config
      *
+     * @throws \InvalidArgumentException
      * @return \Illuminate\Database\Connectors\ConnectorInterface
      *
-     * @throws \InvalidArgumentException
      */
     public function createConnector(array $config)
     {
@@ -171,6 +168,7 @@ class ConnectionFactory
         switch ($this->driver) {
             case 'neo4j':
                 return new Neo4jConnector();
+
                 break;
         }
 
@@ -186,9 +184,9 @@ class ConnectionFactory
      * @param string        $prefix
      * @param array         $config
      *
+     * @throws \InvalidArgumentException
      * @return \Illuminate\Database\Connection
      *
-     * @throws \InvalidArgumentException
      */
     protected function createConnection($driver, $connector, $type, array $config = [])
     {
@@ -199,9 +197,10 @@ class ConnectionFactory
         switch ($driver) {
             case 'neo4j':
                 return $connector->connect($type, $config);
+
                 break;
         }
 
-        throw new InvalidArgumentException("Unsupported driver [$driver]");
+        throw new InvalidArgumentException("Unsupported driver [{$driver}]");
     }
 }

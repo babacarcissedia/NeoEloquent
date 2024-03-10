@@ -3,10 +3,10 @@
 namespace Vinelab\NeoEloquent\Tests;
 
 use Exception;
-use Laudis\Neo4j\Contracts\ClientInterface;
-use Vinelab\NeoEloquent\Connection;
-use Vinelab\NeoEloquent\Connectors\ConnectionFactory;
 use Illuminate\Container\Container;
+use Vinelab\NeoEloquent\Connection;
+use Laudis\Neo4j\Contracts\ClientInterface;
+use Vinelab\NeoEloquent\Connectors\ConnectionFactory;
 
 class ConnectionFactoryTest extends TestCase
 {
@@ -41,11 +41,9 @@ class ConnectionFactoryTest extends TestCase
     public function testMultipleConnections()
     {
         $config = [
-
             'default' => 'server1',
 
             'connections' => [
-
                 'server1' => [
                     'host' => 'server1.host',
                     'username' => 'theuser',
@@ -57,9 +55,7 @@ class ConnectionFactoryTest extends TestCase
                     'username' => 'anotheruser',
                     'password' => 'anotherpass',
                 ],
-
             ],
-
         ];
 
         $connection = $this->factory->make($config);
@@ -74,26 +70,24 @@ class ConnectionFactoryTest extends TestCase
             'replication' => true,
 
             'connections' => [
-
-               'master' => [
+                'master' => [
                     'host' => 'server1.ip.address',
                     'username' => 'theuser',
                     'password' => 'dapass',
-               ],
+                ],
 
-               'slaves' => [
+                'slaves' => [
                     'slave-1' => [
                         'host' => 'server2.ip.address',
                         'username' => 'anotheruser',
                         'password' => 'somepass',
                     ],
-                   'slave-2' => [
+                    'slave-2' => [
                         'host' => 'server3.ip.address',
                         'username' => 'moreusers',
                         'password' => 'differentpass',
                     ],
-               ],
-
+                ],
             ],
         ];
 

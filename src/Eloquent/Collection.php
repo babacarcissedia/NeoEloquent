@@ -23,7 +23,6 @@ class Collection extends BaseCollection
 
         return Arr::first($this->items, function ($itemKey, $model) use ($key) {
             return $model->getKey() == $key;
-
         }, $default);
     }
 
@@ -88,7 +87,6 @@ class Collection extends BaseCollection
             return parent::contains($key, $operator);
         }
 
-
         return parent::contains($key, $operator, $value);
     }
 
@@ -148,7 +146,7 @@ class Collection extends BaseCollection
         $dictionary = $this->getDictionary($items);
 
         foreach ($this->items as $item) {
-            if (!isset($dictionary[$item->getKey()])) {
+            if (! isset($dictionary[$item->getKey()])) {
                 $diff->add($item);
             }
         }
@@ -188,7 +186,7 @@ class Collection extends BaseCollection
      */
     public function unique($key = null, $strict = false)
     {
-        if (!is_null($key)) {
+        if (! is_null($key)) {
             return parent::unique($key, $strict);
         }
 

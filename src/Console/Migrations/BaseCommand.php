@@ -11,7 +11,7 @@ class BaseCommand extends Command
      *
      * @var string
      */
-    const LABELS_DIRECTORY = 'labels';
+    public const LABELS_DIRECTORY = 'labels';
 
     /**
      * Get the path to the migration directory.
@@ -25,8 +25,8 @@ class BaseCommand extends Command
         // First, we will check to see if a path option has been defined. If it has
         // we will use the path relative to the root of this installation folder
         // so that migrations may be run for any path within the applications.
-        if (!is_null($path)) {
-            return $this->laravel['path.base'].'/'.$path;
+        if (! is_null($path)) {
+            return $this->laravel['path.base'] . '/' . $path;
         }
 
         $package = $this->input->getOption('package');
@@ -34,8 +34,8 @@ class BaseCommand extends Command
         // If the package is in the list of migration paths we received we will put
         // the migrations in that path. Otherwise, we will assume the package is
         // is in the package directories and will place them in that location.
-        if (!is_null($package)) {
-            return $this->packagePath.'/'.$package.'/src/'.self::LABELS_DIRECTORY;
+        if (! is_null($package)) {
+            return $this->packagePath . '/' . $package . '/src/' . self::LABELS_DIRECTORY;
         }
 
         $bench = $this->input->getOption('bench');
@@ -43,12 +43,12 @@ class BaseCommand extends Command
         // Finally we will check for the workbench option, which is a shortcut into
         // specifying the full path for a "workbench" project. Workbenches allow
         // developers to develop packages along side a "standard" app install.
-        if (!is_null($bench)) {
-            $path = "/workbench/{$bench}/src/".self::LABELS_DIRECTORY;
+        if (! is_null($bench)) {
+            $path = "/workbench/{$bench}/src/" . self::LABELS_DIRECTORY;
 
-            return $this->laravel['path.base'].$path;
+            return $this->laravel['path.base'] . $path;
         }
 
-        return $this->laravel['path.database'].'/'.self::LABELS_DIRECTORY;
+        return $this->laravel['path.database'] . '/' . self::LABELS_DIRECTORY;
     }
 }

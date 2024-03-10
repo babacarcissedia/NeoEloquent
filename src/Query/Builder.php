@@ -6,22 +6,22 @@ use Closure;
 use DateTime;
 use Carbon\Carbon;
 use BadMethodCallException;
-use InvalidArgumentException;
-use Laudis\Neo4j\Types\CypherList;
-use Laudis\Neo4j\Types\Node;
-use Vinelab\NeoEloquent\ConnectionInterface;
-use GraphAware\Common\Result\AbstractRecordCursor as Result;
-use Vinelab\NeoEloquent\Eloquent\Collection;
-use Vinelab\NeoEloquent\Query\Grammars\Grammar;
-
-use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Laudis\Neo4j\Types\Node;
+use InvalidArgumentException;
+use Laudis\Neo4j\Types\CypherList;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Contracts\Support\Arrayable;
 use Vinelab\NeoEloquent\Traits\ResultTrait;
+use Vinelab\NeoEloquent\ConnectionInterface;
+use Vinelab\NeoEloquent\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Vinelab\NeoEloquent\Query\Grammars\Grammar;
+use Illuminate\Database\Query\Processors\Processor;
+use GraphAware\Common\Result\AbstractRecordCursor as Result;
 
-class Builder
+class Builder extends \Illuminate\Database\Query\Builder
 {
     use ResultTrait;
 
@@ -30,7 +30,7 @@ class Builder
      *
      * @var Vinelab\NeoEloquent\Connection
      */
-    protected $connection;
+    public $connection;
 
     /**
      * The database active client handler.
@@ -44,56 +44,56 @@ class Builder
      *
      * @var \Vinelab\NeoEloquent\Query\Grammars\Grammar
      */
-    protected $grammar;
+    public $grammar;
 
     /**
      * The database query post processor instance.
      *
      * @var \Vinelab\NeoEloquent\Query\Processors\Processor
      */
-    protected $processor;
+    public $processor;
 
     /**
      * The matches constraints for the query.
      *
      * @var array
      */
-    public $matches = array();
+    public $matches = [];
 
     /**
      * The WITH parts of the query.
      *
      * @var array
      */
-    public $with = array();
+    public $with = [];
 
     /**
      * The current query value bindings.
      *
      * @var array
      */
-    protected $bindings = array(
+    public $bindings = [
         'matches' => [],
         'select' => [],
         'join' => [],
         'where' => [],
         'having' => [],
         'order' => [],
-    );
+    ];
 
     /**
      * All of the available clause operators.
      *
      * @var array
      */
-    protected $operators = array(
+    public $operators = [
         '+', '-', '*', '/', '%', '^',    // Mathematical
         '=', '<>', '<', '>', '<=', '>=', // Comparison
         'is null', 'is not null',
         'and', 'or', 'xor', 'not',       // Boolean
         'in', '[x]', '[x .. y]',         // Collection
         '=~',                             // Regular Expression
-    );
+    ];
 
     /**
      * An aggregate function and column to be run.
@@ -214,18 +214,13 @@ class Builder
      */
     protected $bindingBackups = [];
 
-    /**
-     * Create a new query builder instance.
-     *
-     * @param Vinelab\NeoEloquent\Connection $connection
-     */
-    public function __construct(ConnectionInterface $connection, Grammar $grammar)
+    public function __construct(ConnectionInterface $connection, Grammar $grammar = null, $processor = null)
     {
-        $this->grammar = $grammar;
+        parent::__construct($connection, $grammar);
+        $this->grammar = $grammar ?: $connection->getQueryGrammar();
         $this->grammar->setQuery($this);
-
+        $this->processor = $processor ?: $connection->getPostProcessor();
         $this->connection = $connection;
-
         $this->client = $connection->getClient();
     }
 
@@ -288,7 +283,7 @@ class Builder
             throw new InvalidArgumentException();
         }
 
-        return $this->selectRaw('('.$query.') as '.$this->grammar->wrap($as), $bindings);
+        return $this->selectRaw('(' . $query . ') as ' . $this->grammar->wrap($as), $bindings);
     }
 
     /**
@@ -326,7 +321,7 @@ class Builder
      *
      * @return \Vinelab\NeoEloquent\Query\Builder|static
      */
-    public function from($label)
+    public function from($label, $as = null)
     {
         $this->from = $label;
 
@@ -352,6 +347,7 @@ class Builder
 
         /** @var Node $node */
         $node = $results->first()->first()->getValue();
+
         return $node->getId();
     }
 
@@ -408,7 +404,7 @@ class Builder
         // We will run through all the bindings and pluck out
         // the component (select, where, etc.)
         foreach ($this->bindings as $component => $binding) {
-            if (!empty($binding)) {
+            if (! empty($binding)) {
                 // For every binding there could be multiple
                 // values set so we need to add all of them as
                 // flat $key => $value item in our $bindings.
@@ -429,9 +425,9 @@ class Builder
      * @param mixed  $value
      * @param string $boolean
      *
+     * @throws \InvalidArgumentException
      * @return \Vinelab\NeoEloquent\Query\Builder|static
      *
-     * @throws \InvalidArgumentException
      */
     public function where($column, $operator = null, $value = null, $boolean = 'and')
     {
@@ -453,7 +449,7 @@ class Builder
         }
 
         if (func_num_args() == 2) {
-            list($value, $operator) = array($operator, '=');
+            [$value, $operator] = [$operator, '='];
         } elseif ($this->invalidOperatorAndValue($operator, $value)) {
             throw new \InvalidArgumentException('Value must be provided.');
         }
@@ -468,8 +464,8 @@ class Builder
         // If the given operator is not found in the list of valid operators we will
         // assume that the developer is just short-cutting the '=' operators and
         // we will set the operators to '=' and set the values appropriately.
-        if (!in_array(mb_strtolower($operator), $this->operators, true)) {
-            list($value, $operator) = array($operator, '=');
+        if (! in_array(mb_strtolower($operator), $this->operators, true)) {
+            [$value, $operator] = [$operator, '='];
         }
 
         // If the value is a Closure, it means the developer is performing an entire
@@ -496,7 +492,7 @@ class Builder
         // When the column is an id we need to treat it as a graph db id and transform it
         // into the form of id(n) and the typecast the value into int.
         if ($column == 'id') {
-            $column = 'id('.$this->modelAsNode().')';
+            $column = 'id(' . $this->modelAsNode() . ')';
             $value = intval($value);
         }
         // When it's been already passed in the form of NodeLabel.id we'll have to
@@ -517,7 +513,7 @@ class Builder
 
         $property = $this->wrap($binding);
 
-        if (!$value instanceof Expression) {
+        if (! $value instanceof Expression) {
             $this->addBinding([$property => $value], 'where');
         }
 
@@ -551,413 +547,6 @@ class Builder
         $isOperator = in_array($operator, $this->operators);
 
         return $isOperator && $operator != '=' && is_null($value);
-    }
-
-    /**
-     * Add a raw where clause to the query.
-     *
-     * @param string $sql
-     * @param array  $bindings
-     * @param string $boolean
-     *
-     * @return $this
-     */
-    public function whereRaw($sql, array $bindings = [], $boolean = 'and')
-    {
-        $type = 'raw';
-
-        $this->wheres[] = compact('type', 'sql', 'boolean');
-
-        $this->addBinding($bindings, 'where');
-
-        return $this;
-    }
-
-    /**
-     * Add a raw or where clause to the query.
-     *
-     * @param string $sql
-     * @param array  $bindings
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function orWhereRaw($sql, array $bindings = [])
-    {
-        return $this->whereRaw($sql, $bindings, 'or');
-    }
-
-    /**
-     * Add a where not between statement to the query.
-     *
-     * @param string $column
-     * @param array  $values
-     * @param string $boolean
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function whereNotBetween($column, array $values, $boolean = 'and')
-    {
-        return $this->whereBetween($column, $values, $boolean, true);
-    }
-
-    /**
-     * Add an or where not between statement to the query.
-     *
-     * @param string $column
-     * @param array  $values
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function orWhereNotBetween($column, array $values)
-    {
-        return $this->whereNotBetween($column, $values, 'or');
-    }
-
-    /**
-     * Add a nested where statement to the query.
-     *
-     * @param \Closure $callback
-     * @param string   $boolean
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function whereNested(Closure $callback, $boolean = 'and')
-    {
-        // To handle nested queries we'll actually create a brand new query instance
-        // and pass it off to the Closure that we have. The Closure can simply do
-        // do whatever it wants to a query then we will store it for compiling.
-        $query = $this->newQuery();
-
-        $query->from($this->from);
-
-        call_user_func($callback, $query);
-
-        return $this->addNestedWhereQuery($query, $boolean);
-    }
-
-    /**
-     * Add another query builder as a nested where to the query builder.
-     *
-     * @param \Vinelab\NeoEloquent\Query\Builder|static $query
-     * @param string                                    $boolean
-     *
-     * @return $this
-     */
-    public function addNestedWhereQuery($query, $boolean = 'and')
-    {
-        if (count($query->wheres)) {
-            $type = 'Nested';
-
-            $this->wheres[] = compact('type', 'query', 'boolean');
-
-            // Now that all the nested queries are been compiled,
-            // we need to propagate the matches to the parent model.
-            $this->matches = $query->matches;
-
-            // Set the returned columns.
-            $this->columns = $query->columns;
-
-            // Set to carry the required nodes and relations
-            $this->with = $query->with;
-
-            $this->addBinding($query->getBindings(), 'where');
-        }
-
-        return $this;
-    }
-
-    /**
-     * Add an or where between statement to the query.
-     *
-     * @param string $column
-     * @param array  $values
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function orWhereBetween($column, array $values)
-    {
-        return $this->whereBetween($column, $values, 'or');
-    }
-
-    /**
-     * Add a full sub-select to the query.
-     *
-     * @param string   $column
-     * @param string   $operator
-     * @param \Closure $callback
-     * @param string   $boolean
-     *
-     * @return $this
-     */
-    protected function whereSub($column, $operator, Closure $callback, $boolean)
-    {
-        $type = 'Sub';
-
-        $query = $this->newQuery();
-
-        // Once we have the query instance we can simply execute it so it can add all
-        // of the sub-select's conditions to itself, and then we can cache it off
-        // in the array of where clauses for the "main" parent query instance.
-        call_user_func($callback, $query);
-
-        $this->wheres[] = compact('type', 'column', 'operator', 'query', 'boolean');
-
-        $this->addBinding($query->getBindings(), 'where');
-
-        return $this;
-    }
-
-    /**
-     * Add an exists clause to the query.
-     *
-     * @param \Closure $callback
-     * @param string   $boolean
-     * @param bool     $not
-     *
-     * @return $this
-     */
-    public function whereExists(Closure $callback, $boolean = 'and', $not = false)
-    {
-        $type = $not ? 'NotExists' : 'Exists';
-
-        $query = $this->newQuery();
-
-        // Similar to the sub-select clause, we will create a new query instance so
-        // the developer may cleanly specify the entire exists query and we will
-        // compile the whole thing in the grammar and insert it into the SQL.
-        call_user_func($callback, $query);
-
-        $this->wheres[] = compact('type', 'operator', 'query', 'boolean');
-
-        $this->addBinding($query->getBindings(), 'where');
-
-        return $this;
-    }
-
-    /**
-     * Add an or exists clause to the query.
-     *
-     * @param \Closure $callback
-     * @param bool     $not
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function orWhereExists(Closure $callback, $not = false)
-    {
-        return $this->whereExists($callback, 'or', $not);
-    }
-
-    /**
-     * Add a where not exists clause to the query.
-     *
-     * @param \Closure $callback
-     * @param string   $boolean
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function whereNotExists(Closure $callback, $boolean = 'and')
-    {
-        return $this->whereExists($callback, $boolean, true);
-    }
-
-    /**
-     * Add a where not exists clause to the query.
-     *
-     * @param \Closure $callback
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function orWhereNotExists(Closure $callback)
-    {
-        return $this->orWhereExists($callback, true);
-    }
-
-    /**
-     * Add an "or where in" clause to the query.
-     *
-     * @param string $column
-     * @param mixed  $values
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function orWhereIn($column, $values)
-    {
-        return $this->whereIn($column, $values, 'or');
-    }
-
-    /**
-     * Add a "where not in" clause to the query.
-     *
-     * @param string $column
-     * @param mixed  $values
-     * @param string $boolean
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function whereNotIn($column, $values, $boolean = 'and')
-    {
-        return $this->whereIn($column, $values, $boolean, true);
-    }
-
-    /**
-     * Add an "or where not in" clause to the query.
-     *
-     * @param string $column
-     * @param mixed  $values
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function orWhereNotIn($column, $values)
-    {
-        return $this->whereNotIn($column, $values, 'or');
-    }
-
-    /**
-     * Add a where in with a sub-select to the query.
-     *
-     * @param string   $column
-     * @param \Closure $callback
-     * @param string   $boolean
-     * @param bool     $not
-     *
-     * @return $this
-     */
-    protected function whereInSub($column, Closure $callback, $boolean, $not)
-    {
-        $type = $not ? 'NotInSub' : 'InSub';
-
-        // To create the exists sub-select, we will actually create a query and call the
-        // provided callback with the query so the developer may set any of the query
-        // conditions they want for the in clause, then we'll put it in this array.
-        call_user_func($callback, $query = $this->newQuery());
-
-        $this->wheres[] = compact('type', 'column', 'query', 'boolean');
-
-        $this->addBinding($query->getBindings(), 'where');
-
-        return $this;
-    }
-
-    /**
-     * Add an "or where null" clause to the query.
-     *
-     * @param string $column
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function orWhereNull($column)
-    {
-        return $this->whereNull($column, 'or');
-    }
-
-    /**
-     * Add a "where not null" clause to the query.
-     *
-     * @param string $column
-     * @param string $boolean
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function whereNotNull($column, $boolean = 'and')
-    {
-        return $this->whereNull($column, $boolean, true);
-    }
-
-    /**
-     * Add an "or where not null" clause to the query.
-     *
-     * @param string $column
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function orWhereNotNull($column)
-    {
-        return $this->whereNotNull($column, 'or');
-    }
-
-    /**
-     * Increment the value of an existing column on a where clause.
-     * Used to allow querying on the same attribute with different values.
-     *
-     * @param string $column
-     *
-     * @return string
-     */
-    protected function prepareBindingColumn($column)
-    {
-        $count = $this->columnCountForWhereClause($column);
-
-        $binding = ($count > 0) ? $column.'_'.($count + 1) : $column;
-
-        $prefix = $this->from;
-        if (is_array($prefix)) {
-            $prefix = implode('_', $prefix);
-        }
-
-        // we prefix when we do have a prefix ($this->from) and when the column isn't an id (id(abc..)).
-        $prefix = (!preg_match('/id([a-zA-Z0-9]?)/', $column) && !empty($this->from)) ? mb_strtolower($prefix) : '';
-
-        return $prefix.$binding;
-    }
-
-    /**
-     * Add a "where date" statement to the query.
-     *
-     * @param string $column
-     * @param string $operator
-     * @param int    $value
-     * @param string $boolean
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function whereDate($column, $operator, $value, $boolean = 'and')
-    {
-        return $this->addDateBasedWhere('Date', $column, $operator, $value, $boolean);
-    }
-
-    /**
-     * Add a "where day" statement to the query.
-     *
-     * @param string $column
-     * @param string $operator
-     * @param int    $value
-     * @param string $boolean
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function whereDay($column, $operator, $value, $boolean = 'and')
-    {
-        return $this->addDateBasedWhere('Day', $column, $operator, $value, $boolean);
-    }
-
-    /**
-     * Add a "where month" statement to the query.
-     *
-     * @param string $column
-     * @param string $operator
-     * @param int    $value
-     * @param string $boolean
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function whereMonth($column, $operator, $value, $boolean = 'and')
-    {
-        return $this->addDateBasedWhere('Month', $column, $operator, $value, $boolean);
-    }
-
-    /**
-     * Add a "where year" statement to the query.
-     *
-     * @param string $column
-     * @param string $operator
-     * @param int    $value
-     * @param string $boolean
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function whereYear($column, $operator, $value, $boolean = 'and')
-    {
-        return $this->addDateBasedWhere('Year', $column, $operator, $value, $boolean);
     }
 
     /**
@@ -1041,22 +630,6 @@ class Builder
     }
 
     /**
-     * Add a "group by" clause to the query.
-     *
-     * @param array|string $column,...
-     *
-     * @return $this
-     */
-    public function groupBy()
-    {
-        foreach (func_get_args() as $arg) {
-            $this->groups = array_merge((array) $this->groups, is_array($arg) ? $arg : [$arg]);
-        }
-
-        return $this;
-    }
-
-    /**
      * Add a "having" clause to the query.
      *
      * @param string $column
@@ -1072,7 +645,7 @@ class Builder
 
         $this->havings[] = compact('type', 'column', 'operator', 'value', 'boolean');
 
-        if (!$value instanceof Expression) {
+        if (! $value instanceof Expression) {
             $this->addBinding($value, 'having');
         }
 
@@ -1341,62 +914,6 @@ class Builder
     }
 
     /**
-     * Get a single column's value from the first result of a query.
-     *
-     * @param string $column
-     *
-     * @return mixed
-     */
-    public function value($column)
-    {
-        $result = (array) $this->first([$column]);
-
-        return count($result) > 0 ? reset($result) : null;
-    }
-
-    /**
-     * Get a single column's value from the first result of a query.
-     *
-     * This is an alias for the "value" method.
-     *
-     * @param string $column
-     *
-     * @return mixed
-     *
-     * @deprecated since version 5.1.
-     */
-    public function pluck($column)
-    {
-        return $this->value($column);
-    }
-
-    /**
-     * Execute the query and get the first result.
-     *
-     * @param array $columns
-     *
-     * @return mixed|static
-     */
-    public function first($columns = ['*'])
-    {
-        $results = $this->take(1)->get($columns);
-
-        return count($results) > 0 ? reset($results) : null;
-    }
-
-    /**
-     * Execute the query as a "select" statement.
-     *
-     * @param array $columns
-     *
-     * @return array|static[]
-     */
-    public function get($columns = ['*'])
-    {
-        return $this->getFresh($columns);
-    }
-
-    /**
      * Paginate the given query into a simple paginator.
      *
      * @param int      $perPage
@@ -1415,29 +932,6 @@ class Builder
         $results = $this->forPage($page, $perPage)->get($columns);
 
         return new LengthAwarePaginator($results, $total, $perPage, $page, [
-            'path' => Paginator::resolveCurrentPath(),
-            'pageName' => $pageName,
-        ]);
-    }
-
-    /**
-     * Get a paginator only supporting simple next and previous links.
-     *
-     * This is more efficient on larger data-sets, etc.
-     *
-     * @param int    $perPage
-     * @param array  $columns
-     * @param string $pageName
-     *
-     * @return \Illuminate\Contracts\Pagination\Paginator
-     */
-    public function simplePaginate($perPage = 15, $columns = ['*'], $pageName = 'page')
-    {
-        $page = Paginator::resolveCurrentPage($pageName);
-
-        $this->skip(($page - 1) * $perPage)->take($perPage + 1);
-
-        return new Paginator($this->get($columns), $perPage, $page, [
             'path' => Paginator::resolveCurrentPath(),
             'pageName' => $pageName,
         ]);
@@ -1609,7 +1103,7 @@ class Builder
      */
     public function count($columns = '*')
     {
-        if (!is_array($columns)) {
+        if (! is_array($columns)) {
             $columns = [$columns];
         }
 
@@ -1679,7 +1173,7 @@ class Builder
     {
         $wrapped = $this->grammar->wrap($column);
 
-        $columns = array_merge([$column => $this->raw("$wrapped + $amount")], $extra);
+        $columns = array_merge([$column => $this->raw("{$wrapped} + {$amount}")], $extra);
 
         return $this->update($columns);
     }
@@ -1697,7 +1191,7 @@ class Builder
     {
         $wrapped = $this->grammar->wrap($column);
 
-        $columns = array_merge([$column => $this->raw("$wrapped - $amount")], $extra);
+        $columns = array_merge([$column => $this->raw("{$wrapped} - {$amount}")], $extra);
 
         return $this->update($columns);
     }
@@ -1714,7 +1208,7 @@ class Builder
         // If an ID is passed to the method, we will set the where clause to check
         // the ID to allow developers to simply and quickly remove a single row
         // from their database without manually specifying the where clauses.
-        if (!is_null($id)) {
+        if (! is_null($id)) {
             $this->where('id', '=', $id);
         }
 
@@ -1737,20 +1231,6 @@ class Builder
         foreach ($this->grammar->compileTruncate($this) as $sql => $bindings) {
             $this->connection->statement($sql, $bindings);
         }
-    }
-
-    /**
-     * Remove all of the expressions from a list of bindings.
-     *
-     * @param array $bindings
-     *
-     * @return array
-     */
-    protected function cleanBindings(array $bindings)
-    {
-        return array_values(array_filter($bindings, function ($binding) {
-            return !$binding instanceof Expression;
-        }));
     }
 
     /**
@@ -1781,13 +1261,13 @@ class Builder
      * @param array  $bindings
      * @param string $type
      *
+     * @throws \InvalidArgumentException
      * @return $this
      *
-     * @throws \InvalidArgumentException
      */
     public function setBindings(array $bindings, $type = 'where')
     {
-        if (!array_key_exists($type, $this->bindings)) {
+        if (! array_key_exists($type, $this->bindings)) {
             throw new InvalidArgumentException("Invalid binding type: {$type}.");
         }
 
@@ -1795,21 +1275,6 @@ class Builder
 
         return $this;
     }
-
-    /**
-     * Merge an array of bindings into our bindings.
-     *
-     * @param \Vinelab\NeoEloquent\Query\Builder $query
-     *
-     * @return $this
-     */
-    public function mergeBindings(Builder $query)
-    {
-        $this->bindings = array_merge_recursive($this->bindings, $query->bindings);
-
-        return $this;
-    }
-
     /**
      * Get the database connection instance.
      *
@@ -1884,39 +1349,12 @@ class Builder
         $property = $column;
 
         if ($column == 'id') {
-            $column = 'id('.$this->modelAsNode().')';
+            $column = 'id(' . $this->modelAsNode() . ')';
         }
 
         $this->wheres[] = compact('type', 'column', 'values', 'boolean');
 
         $property = $this->wrap($property);
-
-        $this->addBinding([$property => $values], 'where');
-
-        return $this;
-    }
-
-    /**
-     * Add a where between statement to the query.
-     *
-     * @param string $column
-     * @param array  $values
-     * @param string $boolean
-     * @param bool   $not
-     *
-     * @return \Vinelab\NeoEloquent\Query\Builder|static
-     */
-    public function whereBetween($column, array $values, $boolean = 'and', $not = false)
-    {
-        $type = 'between';
-
-        $property = $column;
-
-        if ($column == 'id') {
-            $column = 'id('.$this->modelAsNode().')';
-        }
-
-        $this->wheres[] = compact('column', 'type', 'boolean', 'not');
 
         $this->addBinding([$property => $values], 'where');
 
@@ -1937,7 +1375,7 @@ class Builder
         $type = $not ? 'NotNull' : 'Null';
 
         if ($column == 'id') {
-            $column = 'id('.$this->modelAsNode().')';
+            $column = 'id(' . $this->modelAsNode() . ')';
         }
 
         $binding = $this->prepareBindingColumn($column);
@@ -1945,6 +1383,32 @@ class Builder
         $this->wheres[] = compact('type', 'column', 'boolean', 'binding');
 
         return $this;
+    }
+
+    /**
+     * Increment the value of an existing column on a where clause.
+     * Used to allow querying on the same attribute with different values.
+     *
+     * @param string $column
+     *
+     * @return string
+     */
+    protected function prepareBindingColumn($column)
+    {
+        $count = $this->columnCountForWhereClause($column);
+
+        $binding = ($count > 0) ? $column . '_' . ($count + 1) : $column;
+
+        $prefix = $this->from;
+
+        if (is_array($prefix)) {
+            $prefix = implode('_', $prefix);
+        }
+
+        // we prefix when we do have a prefix ($this->from) and when the column isn't an id (id(abc..)).
+        $prefix = (! preg_match('/id([a-zA-Z0-9]?)/', $column) && ! empty($this->from)) ? mb_strtolower($prefix) : '';
+
+        return $prefix . $binding;
     }
 
     /**
@@ -1977,13 +1441,13 @@ class Builder
     {
         if($this->isAssocArray($parts)) {
             foreach ($parts as $key => $part) {
-                if (!in_array($part, $this->with)) {
+                if (! in_array($part, $this->with)) {
                     $this->with[$key] = $part;
                 }
             }
         } else {
             foreach ($parts as $part) {
-                if (!in_array($part, $this->with)) {
+                if (! in_array($part, $this->with)) {
                     $this->with[] = $part;
                 }
             }
@@ -2004,8 +1468,8 @@ class Builder
         // Since every insert gets treated like a batch insert, we will make sure the
         // bindings are structured in a way that is convenient for building these
         // inserts statements by verifying the elements are actually an array.
-        if (!is_array(reset($values))) {
-            $values = array($values);
+        if (! is_array(reset($values))) {
+            $values = [$values];
         }
 
         // Since every insert gets treated like a batch insert, we will make sure the
@@ -2022,7 +1486,7 @@ class Builder
         // We'll treat every insert like a batch insert so we can easily insert each
         // of the records into the database consistently. This will make it much
         // easier on the grammars to just handle one type of record insertion.
-        $bindings = array();
+        $bindings = [];
 
         foreach ($values as $record) {
             $bindings[] = $record;
@@ -2037,7 +1501,7 @@ class Builder
 
         $results = $this->connection->insert($cypher, $bindings);
 
-        return !!$results;
+        return ! ! $results;
     }
 
     /**
@@ -2063,7 +1527,7 @@ class Builder
      *
      * @return array|static[]
      */
-    public function getFresh($columns = array('*'))
+    public function getFresh($columns = ['*'])
     {
         if (is_null($this->columns)) {
             $this->columns = $columns;
@@ -2112,23 +1576,23 @@ class Builder
         $relatedLabels = $related->nodeLabel();
         $parentNode = $this->modelAsNode($parentLabels);
 
-        $this->matches[] = array(
+        $this->matches[] = [
             'type' => 'Relation',
             'optional' => $boolean,
             'property' => $property,
             'direction' => $direction,
             'relationship' => $relationship,
-            'parent' => array(
+            'parent' => [
                 'node' => $parentNode,
                 'labels' => $parentLabels,
-            ),
-            'related' => array(
+            ],
+            'related' => [
                 'node' => $relatedNode,
                 'labels' => $relatedLabels,
-            ),
-        );
+            ],
+        ];
 
-        $this->addBinding(array($this->wrap($property) => $value), 'matches');
+        $this->addBinding([$this->wrap($property) => $value], 'matches');
 
         return $this;
     }
@@ -2138,19 +1602,19 @@ class Builder
         $parentLabels = $parent->nodeLabel();
         $parentNode = $this->modelAsNode($parentLabels);
 
-        $this->matches[] = array(
+        $this->matches[] = [
             'type' => 'MorphTo',
             'optional' => 'and',
             'property' => $property,
             'direction' => $direction,
-            'related' => array('node' => $relatedNode),
-            'parent' => array(
+            'related' => ['node' => $relatedNode],
+            'parent' => [
                 'node' => $parentNode,
                 'labels' => $parentLabels,
-            ),
-        );
+            ],
+        ];
 
-        $this->addBinding(array($property => $value), 'matches');
+        $this->addBinding([$property => $value], 'matches');
 
         return $this;
     }
@@ -2166,7 +1630,7 @@ class Builder
      */
     public function percentileDisc($column, $percentile = 0.0)
     {
-        return $this->aggregate(__FUNCTION__, array($column), $percentile);
+        return $this->aggregate(__FUNCTION__, [$column], $percentile);
     }
 
     /**
@@ -2181,7 +1645,7 @@ class Builder
      */
     public function percentileCont($column, $percentile = 0.0)
     {
-        return $this->aggregate(__FUNCTION__, array($column), $percentile);
+        return $this->aggregate(__FUNCTION__, [$column], $percentile);
     }
 
     /**
@@ -2193,7 +1657,7 @@ class Builder
      */
     public function stdev($column)
     {
-        return $this->aggregate(__FUNCTION__, array($column));
+        return $this->aggregate(__FUNCTION__, [$column]);
     }
 
     /**
@@ -2205,7 +1669,7 @@ class Builder
      */
     public function stdevp($column)
     {
-        return $this->aggregate(__FUNCTION__, array($column));
+        return $this->aggregate(__FUNCTION__, [$column]);
     }
 
     /**
@@ -2217,7 +1681,7 @@ class Builder
      */
     public function collect($column)
     {
-        $row = $this->aggregate(__FUNCTION__, array($column));
+        $row = $this->aggregate(__FUNCTION__, [$column]);
 
         $collected = [];
 
@@ -2237,7 +1701,19 @@ class Builder
      */
     public function countDistinct($column)
     {
-        return (int) $this->aggregate(__FUNCTION__, array($column));
+        return (int) $this->aggregate(__FUNCTION__, [$column]);
+    }
+
+    /**
+     * Execute the query as a "select" statement.
+     *
+     * @param array $columns
+     *
+     * @return array|static[]
+     */
+    public function get($columns = ['*'])
+    {
+        return $this->getFresh($columns);
     }
 
     /**
@@ -2248,7 +1724,7 @@ class Builder
      *
      * @return mixed
      */
-    public function aggregate($function, $columns = array('*'), $percentile = null)
+    public function aggregate($function, $columns = ['*'], $percentile = null)
     {
         $this->aggregate = array_merge([
             'label' => $this->from,
@@ -2268,6 +1744,7 @@ class Builder
         $values = $this->getRecordsByPlaceholders($results);
 
         $value = reset($values);
+
         if(is_array($value)) {
             return current($value);
         } else {
@@ -2296,7 +1773,7 @@ class Builder
             }
         }
 
-        if (!array_key_exists($type, $this->bindings)) {
+        if (! array_key_exists($type, $this->bindings)) {
             throw new \InvalidArgumentException("Invalid binding type: {$type}.");
         }
 
@@ -2335,7 +1812,7 @@ class Builder
      */
     public function modelAsNode(array $labels = null)
     {
-        $labels = (!is_null($labels)) ? $labels : $this->from;
+        $labels = (! is_null($labels)) ? $labels : $this->from;
 
         return $this->grammar->modelAsNode($labels);
     }
@@ -2412,9 +1889,9 @@ class Builder
      * @param string $method
      * @param array  $parameters
      *
+     * @throws \BadMethodCallException
      * @return mixed
      *
-     * @throws \BadMethodCallException
      */
     public function __call($method, $parameters)
     {
@@ -2438,5 +1915,4 @@ class Builder
     {
         return is_array($array) && array_keys($array) !== range(0, count($array) - 1);
     }
-
 }

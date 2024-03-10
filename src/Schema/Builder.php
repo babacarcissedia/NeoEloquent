@@ -3,17 +3,9 @@
 namespace Vinelab\NeoEloquent\Schema;
 
 use Closure;
-use Vinelab\NeoEloquent\ConnectionInterface;
 
-class Builder
+class Builder extends \Illuminate\Database\Schema\Builder
 {
-    /**
-     * The database connection resolver.
-     *
-     * @var \Illuminate\Database\ConnectionInterface
-     */
-    protected $conn;
-
     /**
      * The Blueprint resolver callback.
      *
@@ -22,21 +14,13 @@ class Builder
     protected $resolver;
 
     /**
-     * @param \Illuminate\Database\ConnectionInterface $conn
-     */
-    public function __construct(ConnectionInterface $conn)
-    {
-        $this->conn = $conn;
-    }
-
-    /**
      * Fallback.
      *
      * @param string $label
      *
+     * @throws RuntimeException
      * @return bool
      *
-     * @throws RuntimeException
      */
     public function hasTable($label)
     {
@@ -150,11 +134,11 @@ you can do so by passing additional arguments to default migration command like:
      *
      * @param Blueprint $blueprint
      */
-    protected function build(Blueprint $blueprint)
+    protected function build($blueprint)
     {
         return $blueprint->build(
             $this->getConnection(),
-            $this->conn->getSchemaGrammar()
+            $this->connection->getSchemaGrammar()
         );
     }
 
@@ -176,30 +160,6 @@ you can do so by passing additional arguments to default migration command like:
     }
 
     /**
-     * Set the database connection instance.
-     *
-     * @param  \Illuminate\Database\ConnectionResolverInterface
-     *
-     * @return \Vinelab\NeoEloquent\Schema\Builder
-     */
-    public function setConnection(ConnectionInterface $connection)
-    {
-        $this->conn = $connection;
-
-        return $this;
-    }
-
-    /**
-     * Get the database connection instance.
-     *
-     * @return \Illuminate\Database\ConnectionResolverInterface
-     */
-    public function getConnection()
-    {
-        return $this->conn;
-    }
-
-    /**
      * Set the Schema Blueprint resolver callback.
      *
      * @param \Closure $resolver
@@ -207,5 +167,10 @@ you can do so by passing additional arguments to default migration command like:
     public function blueprintResolver(Closure $resolver)
     {
         $this->resolver = $resolver;
+    }
+
+    public function dropAllTables()
+    {
+        $this->connection->statement('match (n) detach delete n');
     }
 }

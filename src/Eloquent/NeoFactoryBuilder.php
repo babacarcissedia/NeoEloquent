@@ -1,7 +1,7 @@
-<?php namespace Vinelab\NeoEloquent\Eloquent;
+<?php
 
-use Illuminate\Support\Traits\Macroable;
-use Vinelab\NeoEloquent\Eloquent\Model;
+namespace Vinelab\NeoEloquent\Eloquent;
+
 use Illuminate\Database\Eloquent\FactoryBuilder;
 
 class NeoFactoryBuilder extends FactoryBuilder
@@ -35,7 +35,6 @@ class NeoFactoryBuilder extends FactoryBuilder
     {
         $results->each(function ($model) {
             if (! isset($this->connection)) {
-
                 $model->setConnection($model->getConnectionName());
             }
 

@@ -3,11 +3,11 @@
 namespace Vinelab\NeoEloquent\Schema;
 
 use Closure;
+use Illuminate\Support\Fluent;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\Schema\Grammars\Grammar as IlluminateSchemaGrammar;
-use Illuminate\Support\Fluent;
 
-class Blueprint
+class Blueprint extends \Illuminate\Database\Schema\Blueprint
 {
     /**
      * The label the blueprint describes.
@@ -31,7 +31,7 @@ class Blueprint
     {
         $this->label = $label;
 
-        if (!is_null($callback)) {
+        if (! is_null($callback)) {
             $callback($this);
         }
     }
@@ -65,10 +65,10 @@ class Blueprint
         // grammar which is used to build the necessary SQL statements to build
         // the blueprint element, so we'll just call that compilers function.
         foreach ($this->commands as $command) {
-            $method = 'compile'.ucfirst($command->name);
+            $method = 'compile' . ucfirst($command->name);
 
             if (method_exists($grammar, $method)) {
-                if (!is_null($cypher = $grammar->$method($this, $command, $connection))) {
+                if (! is_null($cypher = $grammar->$method($this, $command, $connection))) {
                     $statements = array_merge($statements, (array) $cypher);
                 }
             }
@@ -201,7 +201,8 @@ class Blueprint
         return new Fluent(
             array_merge(
                 compact('name'),
-                $parameters)
+                $parameters
+            )
         );
     }
 

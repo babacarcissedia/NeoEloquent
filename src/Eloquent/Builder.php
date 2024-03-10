@@ -3,52 +3,21 @@
 namespace Vinelab\NeoEloquent\Eloquent;
 
 use Closure;
-use InvalidArgumentException;
-use Laudis\Neo4j\Types\CypherList;
-use Laudis\Neo4j\Types\Node;
-use Vinelab\NeoEloquent\Eloquent\Relations\Relation;
-use Vinelab\NeoEloquent\Eloquent\Relationship as EloquentRelationship;
-use Vinelab\NeoEloquent\Exceptions\ModelNotFoundException;
-use Vinelab\NeoEloquent\Helpers;
-use Vinelab\NeoEloquent\Query\Builder as QueryBuilder;
-use Vinelab\NeoEloquent\Query\Expression;
-
 use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Laudis\Neo4j\Types\Node;
+use InvalidArgumentException;
+use Vinelab\NeoEloquent\Helpers;
+use Laudis\Neo4j\Types\CypherList;
 use Illuminate\Pagination\Paginator;
 use Vinelab\NeoEloquent\Traits\ResultTrait;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Vinelab\NeoEloquent\Eloquent\Relations\Relation;
+use Vinelab\NeoEloquent\Query\Builder as QueryBuilder;
+use Vinelab\NeoEloquent\Eloquent\Relationship as EloquentRelationship;
 
-class Builder
+class Builder extends \Illuminate\Database\Eloquent\Builder
 {
     use ResultTrait;
-
-    /**
-     * The base query builder instance.
-     */
-    protected QueryBuilder $query;
-
-    /**
-     * The model being queried.
-     */
-    protected Model $model;
-
-    /**
-     * The relationships that should be eager loaded.
-     */
-    protected array $eagerLoad = [];
-
-    /**
-     * A replacement for the typical delete function.
-     *
-     * @var callable
-     */
-    protected $onDelete;
-
-    /**
-     * All of the registered builder macros.
-     */
-    protected array $macros = [];
 
     /**
      * The loaded models that should be transformed back
@@ -62,21 +31,17 @@ class Builder
      */
     protected array $mutations = [];
 
-    /**
-     * The methods that should be returned from query builder.
-     */
-    protected array $passthru = [
-        'insert', 'insertGetId', 'getBindings', 'toSql',
-        'exists', 'count', 'min', 'max', 'avg', 'sum',
-    ];
-
-    /**
-     * Create a new Eloquent query builder instance.
-     */
-    public function __construct(QueryBuilder $query)
+    public function __construct($query)
     {
         $this->query = $query;
     }
+    /**
+     * The methods that should be returned from query builder.
+     */
+    //    protected array $passthru = [
+    //        'insert', 'insertGetId', 'getBindings', 'toSql',
+    //        'exists', 'count', 'min', 'max', 'avg', 'sum',
+    //    ];
 
     /**
      * Find a model by its primary key.
@@ -97,290 +62,12 @@ class Builder
 
         if ($this->model->getKeyName() === 'id') {
             // ids are treated differently in neo4j so we have to adapt the query to them.
-            $this->query->where($this->model->getKeyName().'('.$this->query->modelAsNode().')', '=', (int) $id);
+            $this->query->where($this->model->getKeyName() . '(' . $this->query->modelAsNode() . ')', '=', (int) $id);
         } else {
             $this->query->where($this->model->getKeyName(), '=', $id);
         }
 
         return $this->first($properties);
-    }
-
-    /**
-     * Find a model by its primary key.
-     *
-     * @param array $ids
-     * @param array $columns
-     *
-     * @return Collection
-     */
-    public function findMany($ids, $columns = ['*'])
-    {
-        if (empty($ids)) {
-            return $this->model->newCollection();
-        }
-
-        $this->query->whereIn($this->model->getQualifiedKeyName(), $ids);
-
-        return $this->get($columns);
-    }
-
-    /**
-     * Find a model by its primary key or throw an exception.
-     *
-     * @param mixed $id
-     * @param array $columns
-     *
-     * @return Model|Collection
-     *
-     * @throws ModelNotFoundException
-     */
-    public function findOrFail($id, $columns = ['*'])
-    {
-        $result = $this->find($id, $columns);
-
-        if (is_array($id)) {
-            if (count($result) === count(array_unique($id))) {
-                return $result;
-            }
-        } elseif (!is_null($result)) {
-            return $result;
-        }
-
-        throw (new ModelNotFoundException())->setModel(get_class($this->model));
-    }
-
-    /**
-     * Execute the query and get the first result.
-     *
-     * @param array $columns
-     *
-     * @return Model|static|null
-     */
-    public function first($columns = ['*'])
-    {
-        return $this->take(1)->get($columns)->first();
-    }
-
-    /**
-     * Execute the query and get the first result or throw an exception.
-     *
-     * @param array $columns
-     *
-     * @return Model|static
-     *
-     * @throws ModelNotFoundException
-     */
-    public function firstOrFail($columns = ['*'])
-    {
-        if (!is_null($model = $this->first($columns))) {
-            return $model;
-        }
-
-        throw (new ModelNotFoundException())->setModel(get_class($this->model));
-    }
-
-    /**
-     * Execute the query as a "select" statement.
-     *
-     * @param array $columns
-     *
-     * @return Collection|static[]
-     */
-    public function get($columns = ['*'])
-    {
-        $models = $this->getModels($columns);
-
-        // If we actually found models we will also eager load any relationships that
-        // have been specified as needing to be eager loaded, which will solve the
-        // n+1 query issue for the developers to avoid running a lot of queries.
-        if (count($models) > 0) {
-            $models = $this->eagerLoadRelations($models);
-        }
-
-        return $this->model->newCollection($models);
-    }
-
-    /**
-     * Get a single column's value from the first result of a query.
-     *
-     * @param string $column
-     *
-     * @return mixed
-     */
-    public function value($column)
-    {
-        $result = $this->first([$column]);
-
-        if ($result) {
-            return $result->{$column};
-        }
-
-        return null;
-    }
-
-    /**
-     * Get a single column's value from the first result of a query.
-     *
-     * This is an alias for the "value" method.
-     *
-     * @param string $column
-     *
-     * @return mixed
-     *
-     * @deprecated since version 5.1.
-     */
-    public function pluck($column)
-    {
-        return $this->value($column);
-    }
-
-    /**
-     * Chunk the results of the query.
-     *
-     * @param int      $count
-     * @param callable $callback
-     */
-    public function chunk($count, callable $callback)
-    {
-        $results = $this->forPage($page = 1, $count)->get();
-
-        while (count($results) > 0) {
-            // On each chunk result set, we will pass them to the callback and then let the
-            // developer take care of everything within the callback, which allows us to
-            // keep the memory low for spinning through large result sets for working.
-            if (call_user_func($callback, $results) === false) {
-                break;
-            }
-
-            ++$page;
-
-            $results = $this->forPage($page, $count)->get();
-        }
-    }
-
-    /**
-     * Get an array with the values of a given column.
-     *
-     * @param string $column
-     * @param string $key
-     *
-     * @return \Illuminate\Support\Collection
-     */
-    public function lists($column, $key = null)
-    {
-        $results = $this->query->lists($column, $key);
-
-        // If the model has a mutator for the requested column, we will spin through
-        // the results and mutate the values so that the mutated version of these
-        // columns are returned as you would expect from these Eloquent models.
-        if ($this->model->hasGetMutator($column)) {
-            foreach ($results as &$value) {
-                $fill = [$column => $value];
-
-                $value = $this->model->newFromBuilder($fill)->$column;
-            }
-        }
-
-        return new Collection($results);
-    }
-
-    /**
-     * Increment a column's value by a given amount.
-     *
-     * @param string $column
-     * @param int    $amount
-     * @param array  $extra
-     *
-     * @return int
-     */
-    public function increment($column, $amount = 1, array $extra = [])
-    {
-        $extra = $this->addUpdatedAtColumn($extra);
-
-        return $this->query->increment($column, $amount, $extra);
-    }
-
-    /**
-     * Decrement a column's value by a given amount.
-     *
-     * @param string $column
-     * @param int    $amount
-     * @param array  $extra
-     *
-     * @return int
-     */
-    public function decrement($column, $amount = 1, array $extra = [])
-    {
-        $extra = $this->addUpdatedAtColumn($extra);
-
-        return $this->query->decrement($column, $amount, $extra);
-    }
-
-    /**
-     * Add the "updated at" column to an array of values.
-     *
-     * @param array $values
-     *
-     * @return array
-     */
-    protected function addUpdatedAtColumn(array $values)
-    {
-        if (!$this->model->usesTimestamps()) {
-            return $values;
-        }
-
-        $column = $this->model->getUpdatedAtColumn();
-
-        return Arr::add($values, $column, $this->model->freshTimestampString());
-    }
-
-    /**
-     * Delete a record from the database.
-     *
-     * @return mixed
-     */
-    public function delete()
-    {
-        if (isset($this->onDelete)) {
-            return call_user_func($this->onDelete, $this);
-        }
-
-        return $this->query->delete();
-    }
-
-    /**
-     * Run the default delete function on the builder.
-     *
-     * @return mixed
-     */
-    public function forceDelete()
-    {
-        return $this->query->delete();
-    }
-
-    /**
-     * Register a replacement for the default delete function.
-     *
-     * @param Closure $callback
-     */
-    public function onDelete(Closure $callback)
-    {
-        $this->onDelete = $callback;
-    }
-
-    /**
-     * Declare identifiers to carry over to the next part of the query.
-     *
-     * @param array $parts Should be associative of the form ['value' => 'identifier']
-     *                     and will be mapped to 'WITH value as identifier'
-     *
-     * @return Builder|static
-     */
-    public function carry(array $parts)
-    {
-        $this->query->with($parts);
-
-        return $this;
     }
 
     /**
@@ -390,13 +77,13 @@ class Builder
      *
      * @return array|static[]
      */
-    public function getModels($properties = array('*'))
+    public function getModels($properties = ['*'])
     {
         // First, we will simply get the raw results from the query builders which we
         // can use to populate an array with Eloquent models. We will pass columns
         // that should be selected as well, which are typically just everything.
-        $results = $this->query->get($properties);
 
+        $results = $this->query->get($properties);
         $models = $this->resultsToModels($this->model->getConnectionName(), $results);
         // hold the unique results (discarding duplicates resulting from the query)
 
@@ -418,27 +105,6 @@ class Builder
         // Once we have the results, we can spin through them and instantiate a fresh
         // model instance for each records we retrieved from the database. We will
         // also set the proper connection name for the model after we create it.
-        return $models;
-    }
-
-    /**
-     * Eager load the relationships for the models.
-     *
-     * @param array $models
-     *
-     * @return array
-     */
-    public function eagerLoadRelations(array $models)
-    {
-        foreach ($this->eagerLoad as $name => $constraints) {
-            // For nested eager loads we'll skip loading them here and they will be set as an
-            // eager load on the query to retrieve the relation so that they will be eager
-            // loaded on that query, because that is where they get hydrated as models.
-            if (strpos($name, '.') === false) {
-                $models = $this->loadRelation($models, $name, $constraints);
-            }
-        }
-
         return $models;
     }
 
@@ -498,118 +164,13 @@ class Builder
         foreach ($models as $model) {
             if ($model instanceof EloquentRelationship) {
                 $itDoes = true;
+
                 break;
             }
         }
 
         return $itDoes;
     }
-
-    /**
-     * Get the relation instance for the given relation name.
-     *
-     * @param string $relation
-     *
-     * @return Relation
-     */
-    public function getRelation($relation)
-    {
-        // We want to run a relationship query without any constrains so that we will
-        // not have to remove these where clauses manually which gets really hacky
-        // and is error prone while we remove the developer's own where clauses.
-        $query = Relation::noConstraints(function () use ($relation) {
-            return $this->getModel()->$relation();
-        });
-
-        $nested = $this->nestedRelations($relation);
-
-        // If there are nested relationships set on the query, we will put those onto
-        // the query instances so that they can be handled after this relationship
-        // is loaded. In this way they will all trickle down as they are loaded.
-        if (count($nested) > 0) {
-            $query->getQuery()->with($nested);
-        }
-
-        return $query;
-    }
-
-    /**
-     * Get the deeply nested relations for a given top-level relation.
-     *
-     * @param string $relation
-     *
-     * @return array
-     */
-    protected function nestedRelations($relation)
-    {
-        $nested = [];
-
-        // We are basically looking for any relationships that are nested deeper than
-        // the given top-level relationship. We will just check for any relations
-        // that start with the given top relations and adds them to our arrays.
-        foreach ($this->eagerLoad as $name => $constraints) {
-            if ($this->isNested($name, $relation)) {
-                $nested[substr($name, strlen($relation.'.'))] = $constraints;
-            }
-        }
-
-        return $nested;
-    }
-
-    /**
-     * Determine if the relationship is nested.
-     *
-     * @param string $name
-     * @param string $relation
-     *
-     * @return bool
-     */
-    protected function isNested($name, $relation)
-    {
-        $dots = Str::contains($name, '.');
-
-        return $dots && Str::startsWith($name, $relation.'.');
-    }
-
-    /**
-     * Add a basic where clause to the query.
-     *
-     * @param string $column
-     * @param string $operator
-     * @param mixed  $value
-     * @param string $boolean
-     *
-     * @return $this
-     */
-    public function where($column, $operator = null, $value = null, $boolean = 'and')
-    {
-        if ($column instanceof Closure) {
-            $query = $this->model->newQueryWithoutScopes();
-
-            call_user_func($column, $query);
-
-            $this->query->addNestedWhereQuery($query->getQuery(), $boolean);
-        } else {
-            call_user_func_array([$this->query, 'where'], func_get_args());
-        }
-
-        return $this;
-    }
-
-    /**
-     * Add an "or where" clause to the query.
-     *
-     * @param string $column
-     * @param string $operator
-     * @param mixed  $value
-     *
-     * @return Builder|static
-     */
-    public function orWhere($column, $operator = null, $value = null)
-    {
-        return $this->where($column, $operator, $value, 'or');
-    }
-
     /**
      * Turn Neo4j result set into the corresponding model.
      *
@@ -618,7 +179,7 @@ class Builder
      *
      * @return array
      */
-    protected function resultsToModels($connection, ?CypherList $results = null)
+    protected function resultsToModels($connection, $results = null)
     {
         $models = [];
 
@@ -628,7 +189,7 @@ class Builder
             $resultsByIdentifier = $this->getRecordsByPlaceholders($results);
             $relationships = $this->getRelationshipRecords($results);
 
-            if (!empty($relationships) && !empty($this->mutations)) {
+            if (! empty($relationships) && ! empty($this->mutations)) {
                 $startIdentifier = $this->getStartNodeIdentifier($resultsByIdentifier, $relationships);
                 $endIdentifier = $this->getEndNodeIdentifier($resultsByIdentifier, $relationships);
 
@@ -707,7 +268,7 @@ class Builder
     public function newModelFromNode(Node $node, Model $model, $connection = null)
     {
         // let's begin with a proper connection
-        if (!$connection) {
+        if (! $connection) {
             $connection = $model->getConnectionName();
         }
 
@@ -739,43 +300,42 @@ class Builder
     {
         $models = [];
 
-        if (!$results->isEmpty()) {
+        if (! $results->isEmpty()) {
             $grammar = $this->getQuery()->getGrammar();
 
-//            $nodesByIdentifier = $results->getAllByIdentifier();
-//
-//            foreach ($nodesByIdentifier as $identifier => $nodes) {
-//                // Now that we have the attributes, we first check for mutations
-//                // and if exists, we will need to mutate the attributes accordingly.
-//                if ($this->shouldMutate($identifier)) {
-//                    foreach ($nodes as $node) {
-//                        $attributes = $node->getProperties();
-//                        $cropped = $grammar->cropLabelIdentifier($identifier);
-//
-//                        if (!isset($models[$cropped])) {
-//                            $models[$cropped] = [];
-//                        }
-//
-//                        if (isset($this->mutations[$cropped])) {
-//                            $mutationModel = $this->getMutationModel($cropped);
-//                            $models[$cropped][] = $this->newModelFromNode($node, $mutationModel);
-//                        }
-//                    }
-//                }
-//            }
+            //            $nodesByIdentifier = $results->getAllByIdentifier();
+            //
+            //            foreach ($nodesByIdentifier as $identifier => $nodes) {
+            //                // Now that we have the attributes, we first check for mutations
+            //                // and if exists, we will need to mutate the attributes accordingly.
+            //                if ($this->shouldMutate($identifier)) {
+            //                    foreach ($nodes as $node) {
+            //                        $attributes = $node->getProperties();
+            //                        $cropped = $grammar->cropLabelIdentifier($identifier);
+            //
+            //                        if (!isset($models[$cropped])) {
+            //                            $models[$cropped] = [];
+            //                        }
+            //
+            //                        if (isset($this->mutations[$cropped])) {
+            //                            $mutationModel = $this->getMutationModel($cropped);
+            //                            $models[$cropped][] = $this->newModelFromNode($node, $mutationModel);
+            //                        }
+            //                    }
+            //                }
+            //            }
 
             $recordsByPlaceholders = $this->getRecordsByPlaceholders($results);
 
             foreach ($recordsByPlaceholders as $placeholder => $records) {
-
                 // Now that we have the attributes, we first check for mutations
                 // and if exists, we will need to mutate the attributes accordingly.
                 if ($this->shouldMutate($placeholder)) {
                     $cropped = $grammar->cropLabelIdentifier($placeholder);
-//                    $attributes = $record->values();
+                    //                    $attributes = $record->values();
 
                     foreach ($records as $record) {
-                        if (!isset($models[$cropped])) {
+                        if (! isset($models[$cropped])) {
                             $models[$cropped] = [];
                         }
 
@@ -807,9 +367,10 @@ class Builder
         foreach ($attributes as $mutation => $values) {
             // First we should see whether this mutation can be resolved so that
             // we take it into consideration otherwise we skip to the next iteration.
-            if (!$this->resolvableMutation($mutation)) {
+            if (! $this->resolvableMutation($mutation)) {
                 continue;
             }
+
             // Since this mutation should be resolved by us then we check whether it is
             // a Many or One mutation.
             if ($this->isManyMutation($mutation)) {
@@ -871,11 +432,13 @@ class Builder
             $relationship = current($this->getRelationshipRecords($result));
             // Get the morph class name.
             $class = $relationship->getProperties()->get($mutationModelProperty);
+
             // we need the model attributes though we might receive a nested
             // array that includes them on level 2 so we check
             // whether what we have is the array of attrs
-            if (!Helpers::isAssocArray($attributesByLabel[$label])) {
+            if (! Helpers::isAssocArray($attributesByLabel[$label])) {
                 $attributes = current($attributesByLabel[$label]);
+
                 if ($attributes instanceof Node) {
                     $attributes = $this->getNodeAttributes($attributes);
                 }
@@ -911,7 +474,7 @@ class Builder
     }
 
     /**
-     * Get the properties (attribtues in Eloquent terms)
+     * Get the properties (attributes in Eloquent terms)
      * out of a result row.
      *
      * @param array                     $columns The columns retrieved by the result
@@ -925,7 +488,7 @@ class Builder
     public function getProperties(array $resultColumns, Row $row)
     {
         dd('Get Properties, Everyman dependent');
-        $attributes = array();
+        $attributes = [];
 
         $columns = $this->query->columns;
 
@@ -956,7 +519,7 @@ class Builder
 
                     // as already assigned, RETURNed props will be preceded by an 'n.'
                     // representing the node we're targeting.
-                    $returned = $this->query->modelAsNode().".{$property}";
+                    $returned = $this->query->modelAsNode() . ".{$property}";
 
                     $value = $row[$returned];
                 }
@@ -970,8 +533,8 @@ class Builder
 
             // WARNING: Do this after setting all the attributes to avoid overriding it
             // with a null value or colliding it with something else, some Daenerys dragons maybe ?!
-            if (!is_null($columns) && in_array('id', $columns)) {
-                $attributes['id'] = $row['id('.$this->query->modelAsNode().')'];
+            if (! is_null($columns) && in_array('id', $columns)) {
+                $attributes['id'] = $row['id(' . $this->query->modelAsNode() . ')'];
             }
         } elseif ($result instanceof Node) {
             $attributes = $this->getNodeAttributes($result);
@@ -1080,9 +643,9 @@ class Builder
      * @param string   $pageName
      * @param int|null $page
      *
+     * @throws InvalidArgumentException
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      *
-     * @throws InvalidArgumentException
      */
     public function paginate($perPage = null, $columns = ['*'], $pageName = 'page', $page = null)
     {
@@ -1109,32 +672,6 @@ class Builder
     public function update(array $values)
     {
         return $this->query->update($this->addUpdatedAtColumn($values));
-    }
-
-    /**
-     * Get a paginator only supporting simple next and previous links.
-     *
-     * This is more efficient on larger data-sets, etc.
-     *
-     * @param int    $perPage
-     * @param array  $columns
-     * @param string $pageName
-     *
-     * @return Paginator
-     *
-     * @internal param \Illuminate\Pagination\Factory $paginator
-     */
-    public function simplePaginate($perPage = null, $columns = array('*'), $pageName = 'page')
-    {
-        $paginator = $this->query->getConnection()->getPaginator();
-        $page = $paginator->getCurrentPage();
-        $perPage = $perPage ?: $this->model->getPerPage();
-        $this->query->skip(($page - 1) * $perPage)->take($perPage + 1);
-
-        return new Paginator($this->get($columns), $perPage, $page, [
-            'path' => Paginator::resolveCurrentPath(),
-            'pageName' => $pageName,
-        ]);
     }
 
     /**
@@ -1206,7 +743,7 @@ class Builder
      */
     public function isMorphMutation($mutation)
     {
-        if (!is_array($mutation) && isset($this->mutations[$mutation])) {
+        if (! is_array($mutation) && isset($this->mutations[$mutation])) {
             $mutation = $this->getMutation($mutation);
         }
 
@@ -1371,8 +908,8 @@ class Builder
              *
              * Which is the result of Post::has('comments', '>=', 10)->get();
              */
-            $countPart = $prefix.'_count';
-            $this->carry([$relation->getParentNode(), "count($prefix)" => $countPart]);
+            $countPart = $prefix . '_count';
+            $this->carry([$relation->getParentNode(), "count({$prefix})" => $countPart]);
             $this->whereCarried($countPart, $operator, $count);
         }
 
@@ -1383,7 +920,8 @@ class Builder
         // Set the relationship match clause.
         $method = $this->getMatchMethodName($relation);
 
-        $this->$method($relation->getParent(),
+        $this->$method(
+            $relation->getParent(),
             $relation->getRelated(),
             $relatedNode,
             $relation->getRelationType(),
@@ -1454,21 +992,6 @@ class Builder
     }
 
     /**
-     * Add a relationship count condition to the query with where clauses.
-     *
-     * @param string   $relation
-     * @param Closure $callback
-     * @param string   $operator
-     * @param int      $count
-     *
-     * @return Builder|static
-     */
-    public function whereHas($relation, Closure $callback, $operator = '>=', $count = 1)
-    {
-        return $this->has($relation, $operator, $count, 'and', $callback);
-    }
-
-    /**
      * Add a relationship count condition to the query with an "or".
      *
      * @param string $relation
@@ -1496,43 +1019,6 @@ class Builder
     }
 
     /**
-     * Add a relationship count condition to the query with where clauses and an "or".
-     *
-     * @param string   $relation
-     * @param Closure $callback
-     * @param string   $operator
-     * @param int      $count
-     *
-     * @return Builder|static
-     */
-    public function orWhereHas($relation, Closure $callback, $operator = '>=', $count = 1)
-    {
-        return $this->has($relation, $operator, $count, 'or', $callback);
-    }
-
-    /**
-     * Add the "has" condition where clause to the query.
-     *
-     * @param Builder $hasQuery
-     * @param Relation $relation
-     * @param string                                           $operator
-     * @param int                                              $count
-     * @param string                                           $boolean
-     *
-     * @return Builder
-     */
-    protected function addHasWhere(Builder $hasQuery, Relation $relation, $operator, $count, $boolean)
-    {
-        $this->mergeWheresToHas($hasQuery, $relation);
-
-        if (is_numeric($count)) {
-            $count = new Expression($count);
-        }
-
-        return $this->where(new Expression('('.$hasQuery->toCypher().')'), $operator, $count, $boolean);
-    }
-
-    /**
      * Merge the "wheres" from a relation query to a has query.
      *
      * @param Builder $hasQuery
@@ -1548,7 +1034,8 @@ class Builder
         $hasQuery = $hasQuery->getModel()->removeGlobalScopes($hasQuery);
 
         $hasQuery->mergeWheres(
-            $relationQuery->wheres, $relationQuery->getBindings()
+            $relationQuery->wheres,
+            $relationQuery->getBindings()
         );
 
         $this->query->mergeBindings($hasQuery->getQuery());
@@ -1569,26 +1056,6 @@ class Builder
     }
 
     /**
-     * Set the relationships that should be eager loaded.
-     *
-     * @param mixed $relations
-     *
-     * @return $this
-     */
-    public function with($relations)
-    {
-        if (is_string($relations)) {
-            $relations = func_get_args();
-        }
-
-        $eagers = $this->parseRelations($relations);
-
-        $this->eagerLoad = array_merge($this->eagerLoad, $eagers);
-
-        return $this;
-    }
-
-    /**
      * Parse a list of relations into individuals.
      *
      * @param array $relations
@@ -1606,7 +1073,7 @@ class Builder
             if (is_numeric($name)) {
                 $f = function () {};
 
-                list($name, $constraints) = [$constraints, $f];
+                [$name, $constraints] = [$constraints, $f];
             }
 
             // We need to separate out any nested includes. Which allows the developers
@@ -1638,27 +1105,12 @@ class Builder
         foreach (explode('.', $name) as $segment) {
             $progress[] = $segment;
 
-            if (!isset($results[$last = implode('.', $progress)])) {
+            if (! isset($results[$last = implode('.', $progress)])) {
                 $results[$last] = function () {};
             }
         }
 
         return $results;
-    }
-
-    /**
-     * Call the given model scope on the underlying model.
-     *
-     * @param string $scope
-     * @param array  $parameters
-     *
-     * @return QueryBuilder
-     */
-    protected function callScope($scope, $parameters)
-    {
-        array_unshift($parameters, $this);
-
-        return call_user_func_array([$this->model, $scope], $parameters) ?: $this;
     }
 
     /**
@@ -1720,22 +1172,6 @@ class Builder
     }
 
     /**
-     * Set a model instance for the model being queried.
-     *
-     * @param Model $model
-     *
-     * @return $this
-     */
-    public function setModel(Model $model)
-    {
-        $this->model = $model;
-
-        $this->query->from($model->nodeLabel());
-
-        return $this;
-    }
-
-    /**
      * Extend the builder with a given callback.
      *
      * @param string   $name
@@ -1791,11 +1227,13 @@ class Builder
          *  ]
          */
         $related = [];
+
         foreach ($relations as $relation => $values) {
             $name = $relation;
+
             // Get the relation by calling the model's relationship function.
-            if (!method_exists($this->model, $relation)) {
-                throw new QueryException("The relation method $relation() does not exist on ".get_class($this->model));
+            if (! method_exists($this->model, $relation)) {
+                throw new QueryException("The relation method {$relation}() does not exist on " . get_class($this->model));
             }
 
             $relationship = $this->model->$relation();
@@ -1808,8 +1246,8 @@ class Builder
             // this is probably a One-To-One relationship or the dev decided not to add
             // multiple records as relations so we'll wrap it up in an array.
             if (
-                (!is_array($values) || Helpers::isAssocArray($values) || $values instanceof Model)
-                && !($values instanceof Collection)
+                (! is_array($values) || Helpers::isAssocArray($values) || $values instanceof Model)
+                && ! ($values instanceof Collection)
             ) {
                 $values = [$values];
             }
@@ -1823,6 +1261,7 @@ class Builder
             $attach = [];
             // Hold the models that we need to create
             $create = [];
+
             // Separate the models that needs to be attached from the ones that needs
             // to be created.
             foreach ($values as $value) {
@@ -1839,7 +1278,7 @@ class Builder
                 // Or in the case where the attributes are neither an array nor a model instance
                 // then this is assumed to be the model Id that the dev means to attach and since
                 // Neo4j node Ids are always an int then we take that as a value.
-                elseif (!is_array($value) && !$value instanceof Model) {
+                elseif (! is_array($value) && ! $value instanceof Model) {
                     $attach[] = $value;
                 }
                 // In this case the record is considered to be new to the market so let's create it.
@@ -1855,7 +1294,7 @@ class Builder
         $results = $this->query->createWith($model, $related);
         $models = $this->resultsToModelsWithRelations($this->model->getConnectionName(), $results);
 
-        return (!empty($models)) ? $models : null;
+        return (! empty($models)) ? $models : null;
     }
 
     /**
@@ -1883,6 +1322,7 @@ class Builder
         else {
             $instance = new $class($attributes);
         }
+
         // Update timestamps on the instance, this will only affect newly
         // created models by adding timestamps to them, otherwise it has no effect
         // on existing models.
@@ -1921,9 +1361,9 @@ class Builder
         return array_map(function ($where) use ($prefix) {
             if ($where['type'] == 'Nested') {
                 $where['query']->wheres = $this->prefixWheres($where['query']->wheres, $prefix);
-            } else if ($where['type'] != 'Carried' && strpos($where['column'], '.') == false) {
+            } elseif ($where['type'] != 'Carried' && strpos($where['column'], '.') == false) {
                 $column = $where['column'];
-                $where['column'] = ($this->isId($column)) ? $column : $prefix.'.'.$column;
+                $where['column'] = ($this->isId($column)) ? $column : $prefix . '.' . $column;
             }
 
             return $where;
@@ -1951,30 +1391,7 @@ class Builder
      */
     protected function getMatchMethodName($relation)
     {
-        return 'match'.ucfirst(mb_strtolower($relation->getEdgeDirection()));
-    }
-
-    /**
-     * Dynamically handle calls into the query instance.
-     *
-     * @param string $method
-     * @param array  $parameters
-     *
-     * @return mixed
-     */
-    public function __call($method, $parameters)
-    {
-        if (isset($this->macros[$method])) {
-            array_unshift($parameters, $this);
-
-            return call_user_func_array($this->macros[$method], $parameters);
-        } elseif (method_exists($this->model, $scope = 'scope'.ucfirst($method))) {
-            return $this->callScope($scope, $parameters);
-        }
-
-        $result = call_user_func_array([$this->query, $method], $parameters);
-
-        return in_array($method, $this->passthru) ? $result : $this;
+        return 'match' . ucfirst(mb_strtolower($relation->getEdgeDirection()));
     }
 
     /**

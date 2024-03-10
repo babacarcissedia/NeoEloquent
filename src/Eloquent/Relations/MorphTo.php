@@ -46,7 +46,7 @@ class MorphTo extends OneRelation
             // name as an indicator of the Node that has our morph attributes in the query.
             $this->query->addMorphMutation($this->relation);
             // Set the parent node's placeholder as the RETURN key.
-            $this->query->getQuery()->from = array($parentNode);
+            $this->query->getQuery()->from = [$parentNode];
             // Build the MATCH ()<-[]-() Cypher clause.
             $this->query->matchMorphOut($this->parent, $this->relation, $this->relationType, $this->parent->{$this->relationType});
             // Add WHERE clause over the parent node's matching key = value.
@@ -72,7 +72,7 @@ class MorphTo extends OneRelation
         $this->query->addMutation($parentNode, $this->parent);
         $this->query->addEagerMorphMutation($this->relation);
         // Set the parent node's placeholder as the RETURN key.
-        $this->query->getQuery()->from = array($parentNode);
+        $this->query->getQuery()->from = [$parentNode];
         // Build the MATCH ()<-[]-() Cypher clause.
         $this->query->matchMorphOut($this->parent, $this->relation, $this->relationType, $this->parent->{$this->relationType});
         // Add WHERE clause over the parent node's matching keys [values...].
@@ -100,7 +100,6 @@ class MorphTo extends OneRelation
             }
 
             return $match;
-
         }, $matched);
     }
 
@@ -112,9 +111,9 @@ class MorphTo extends OneRelation
      *
      * @return \Vinelab\NeoEloquent\Eloquent\Edges\EdgeOut
      */
-    public function getEdge(Model $model = null, $attributes = array())
+    public function getEdge(Model $model = null, $attributes = [])
     {
-        $model = (!is_null($model)) ? $model : $this->parent->{$this->relation};
+        $model = (! is_null($model)) ? $model : $this->parent->{$this->relation};
 
         // Indicate a unique relationship since this involves one other model.
         $unique = true;

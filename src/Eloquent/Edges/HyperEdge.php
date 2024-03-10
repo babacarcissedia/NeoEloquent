@@ -56,7 +56,7 @@ class HyperEdge extends Edge
      * @param string                               $morphType
      * @param Vinelab\NeoEloquent\Eloquent\Model   $morph
      */
-    public function __construct(Builder $query, Model $parent, $type, Model $related, $morphType, Model $morph, $attributes = array())
+    public function __construct(Builder $query, Model $parent, $type, Model $related, $morphType, Model $morph, $attributes = [])
     {
         $this->morph = $morph;
         $this->morphType = $morphType;

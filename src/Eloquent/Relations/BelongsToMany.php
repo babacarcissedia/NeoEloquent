@@ -105,7 +105,7 @@ class BelongsToMany extends HasOneOrMany
             // Tell the query that we only need the related model returned.
             $this->query->select($this->relation);
             // Set the parent node's placeholder as the RETURN key.
-            $this->query->getQuery()->from = array($parentNode);
+            $this->query->getQuery()->from = [$parentNode];
             // Build the MATCH ()-[]->() Cypher clause.
             $this->query->matchIn($this->parent, $this->related, $this->relation, $this->type, $this->localKey, $this->parent->{$this->localKey});
             // Add WHERE clause over the parent node's matching key = value.
@@ -138,7 +138,7 @@ class BelongsToMany extends HasOneOrMany
         $this->query->addManyMutation($parentNode, $this->parent);
 
         // Set the parent node's placeholder as the RETURN key.
-        $this->query->getQuery()->from = array($parentNode);
+        $this->query->getQuery()->from = [$parentNode];
         // Build the MATCH ()-[]->() Cypher clause.
         $this->query->matchIn($this->parent, $this->related, $this->relation, $this->type, $this->localKey, $this->parent->{$this->localKey});
         // Add WHERE clause over the parent node's matching keys [values...].
@@ -168,9 +168,9 @@ class BelongsToMany extends HasOneOrMany
      *
      * @return \Vinelab\NeoEloquent\Eloquent\Edges\Edge[In|Out]
      */
-    public function getEdge(Model $model = null, $attributes = array())
+    public function getEdge(Model $model = null, $attributes = [])
     {
-        $model = (!is_null($model)) ? $model : $this->related;
+        $model = (! is_null($model)) ? $model : $this->related;
 
         return new EdgeIn($this->query, $this->parent, $model, $this->type, $attributes);
     }

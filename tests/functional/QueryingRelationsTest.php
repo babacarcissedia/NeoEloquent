@@ -5,8 +5,8 @@ namespace Vinelab\NeoEloquent\Tests\Functional\QueryingRelations;
 use DateTime;
 use Mockery as M;
 use Carbon\Carbon;
-use Vinelab\NeoEloquent\Tests\TestCase;
 use Vinelab\NeoEloquent\Eloquent\Model;
+use Vinelab\NeoEloquent\Tests\TestCase;
 
 class QueryingRelationsTest extends TestCase
 {
@@ -29,11 +29,12 @@ class QueryingRelationsTest extends TestCase
 
         // add two comments to $postWithTwoComments
         for ($i = 0; $i < 2; ++$i) {
-            $postWithTwoComments->comments()->create(['text' => "Comment $i"]);
+            $postWithTwoComments->comments()->create(['text' => "Comment {$i}"]);
         }
+
         // add ten comments to $postWithTenComments
         for ($i = 0; $i < 10; ++$i) {
-            $postWithTenComments->comments()->create(['text' => "Comment $i"]);
+            $postWithTenComments->comments()->create(['text' => "Comment {$i}"]);
         }
 
         $allPosts = Post::get();
@@ -42,6 +43,7 @@ class QueryingRelationsTest extends TestCase
         $posts = Post::has('comments')->get();
         $this->assertEquals(3, count($posts));
         $expectedHasComments = [$postWithComment->id, $postWithTwoComments->id, $postWithTenComments->id];
+
         foreach ($posts as $key => $post) {
             $this->assertTrue(in_array($post->id, $expectedHasComments));
         }
@@ -49,6 +51,7 @@ class QueryingRelationsTest extends TestCase
         $postsWithMoreThanOneComment = Post::has('comments', '>=', 2)->get();
         $this->assertEquals(2, count($postsWithMoreThanOneComment));
         $expectedWithMoreThanOne = [$postWithTwoComments->id, $postWithTenComments->id];
+
         foreach ($postsWithMoreThanOneComment as $post) {
             $this->assertTrue(in_array($post->id, $expectedWithMoreThanOne));
         }
@@ -74,7 +77,6 @@ class QueryingRelationsTest extends TestCase
         $permissionTwo = Permission::create(['title' => 'Boomba', 'alias' => 'boomba']);
         $roleWithTwo->permissions()->saveMany([$permissionOne, $permissionTwo]);
         $userWithTwo->roles()->save($roleWithTwo);
-
 
         // user with a role that has no permission
         $user2 = User::Create(['name' => 'u2']);
@@ -122,8 +124,9 @@ class QueryingRelationsTest extends TestCase
         $expectedAdmins = array_map(function ($admin) {
             return $admin->toArray();
         }, $expectedAdmins);
+
         foreach ($admins as $key => $admin) {
-            $this->assertContains($admin->toArray()['id'], array_map(static fn(array $admin) => $admin['id'], $expectedAdmins));
+            $this->assertContains($admin->toArray()['id'], array_map(static fn (array $admin) => $admin['id'], $expectedAdmins));
         }
         // check editors
         $editors = User::whereHas('roles', function ($q) { $q->where('alias', 'editor'); })->get();
@@ -136,8 +139,9 @@ class QueryingRelationsTest extends TestCase
         $expectedManagers = array_map(function ($manager) {
             return $manager->toArray();
         }, $expectedManagers);
+
         foreach ($managers as $key => $manager) {
-            $this->assertContains($manager->toArray()['id'], array_map(static fn(array $manager) => $manager['id'], $expectedManagers));
+            $this->assertContains($manager->toArray()['id'], array_map(static fn (array $manager) => $manager['id'], $expectedManagers));
         }
     }
 
@@ -205,9 +209,9 @@ class QueryingRelationsTest extends TestCase
         $roleWithTwo->permissions()->saveMany([$permissionOne, $permissionTwo]);
         $userWithTwo->roles()->save($roleWithTwo);
 
-        $found = User::whereHas('roles', function($q) use($role, $permission) {
+        $found = User::whereHas('roles', function ($q) use ($role, $permission) {
             $q->where($role->getKeyName(), $role->getKey());
-            $q->whereHas('permissions', function($q) use($permission) {
+            $q->whereHas('permissions', function ($q) use ($permission) {
                 $q->where($permission->getKeyName(), $permission->getKey());
             });
         })->get();
@@ -234,9 +238,9 @@ class QueryingRelationsTest extends TestCase
         $roleWithTwo->permissions()->saveMany([$permissionOne, $permissionTwo]);
         $userWithTwo->roles()->save($roleWithTwo);
 
-        $found = User::whereHas('roles', function($q) use($role, $permission) {
+        $found = User::whereHas('roles', function ($q) use ($role, $permission) {
             $q->where('alias', $role->alias);
-            $q->whereHas('permissions', function($q) use($permission) {
+            $q->whereHas('permissions', function ($q) use ($permission) {
                 $q->where('alias', $permission->alias);
             });
         })->get();
@@ -261,9 +265,8 @@ class QueryingRelationsTest extends TestCase
         $this->assertNotNull($related->updated_at);
 
         $attrs = $related->toArray();
-        unset($attrs['id']);
-        unset($attrs['created_at']);
-        unset($attrs['updated_at']);
+        unset($attrs['id'], $attrs['created_at'], $attrs['updated_at']);
+
         $this->assertEquals($account, $attrs);
     }
 
@@ -291,15 +294,13 @@ class QueryingRelationsTest extends TestCase
             $this->assertNotNull($permission->created_at);
             $this->assertNotNull($permission->updated_at);
             $attrs = $permission->toArray();
-            unset($attrs['id']);
-            unset($attrs['created_at']);
-            unset($attrs['updated_at']);
+            unset($attrs['id'], $attrs['created_at'], $attrs['updated_at']);
+
             if ($permissions[$key] instanceof Permission) {
                 $permission = $permissions[$key];
                 $permission = $permission->toArray();
-                unset($permission['id']);
-                unset($permission['created_at']);
-                unset($permission['updated_at']);
+                unset($permission['id'], $permission['created_at'], $permission['updated_at']);
+
                 $this->assertEquals($permission, $attrs);
             } else {
                 $this->assertEquals($permissions[$key], $attrs);
@@ -345,9 +346,8 @@ class QueryingRelationsTest extends TestCase
             $this->assertNotNull($photo->created_at);
             $this->assertNotNull($photo->updated_at);
             $attrs = $photo->toArray();
-            unset($attrs['id']);
-            unset($attrs['created_at']);
-            unset($attrs['updated_at']);
+            unset($attrs['id'], $attrs['created_at'], $attrs['updated_at']);
+
             $this->assertEquals($photos[$key], $attrs);
         }
 
@@ -356,9 +356,8 @@ class QueryingRelationsTest extends TestCase
         $this->assertNotNull($video->created_at);
         $this->assertNotNull($video->updated_at);
         $attrs = $video->toArray();
-        unset($attrs['id']);
-        unset($attrs['created_at']);
-        unset($attrs['updated_at']);
+        unset($attrs['id'], $attrs['created_at'], $attrs['updated_at']);
+
         $this->assertEquals($videos[0], $attrs);
     }
 
@@ -375,9 +374,8 @@ class QueryingRelationsTest extends TestCase
         $this->assertNotNull($related->created_at);
         $this->assertNotNull($related->updated_at);
         $attrs = $related->toArray();
-        unset($attrs['id']);
-        unset($attrs['created_at']);
-        unset($attrs['updated_at']);
+        unset($attrs['id'], $attrs['created_at'], $attrs['updated_at']);
+
         $this->assertEquals($attrs, $user);
     }
 
@@ -394,13 +392,11 @@ class QueryingRelationsTest extends TestCase
         $this->assertNotNull($related->created_at);
         $this->assertNotNull($related->updated_at);
         $attrs = $related->toArray();
-        unset($attrs['id']);
-        unset($attrs['created_at']);
-        unset($attrs['updated_at']);
+        unset($attrs['id'], $attrs['created_at'], $attrs['updated_at']);
+
         $usersArray = $users->toArray();
-        unset($usersArray['id']);
-        unset($usersArray['created_at']);
-        unset($usersArray['updated_at']);
+        unset($usersArray['id'], $usersArray['created_at'], $usersArray['updated_at']);
+
         $this->assertEquals($attrs, $usersArray);
     }
 
@@ -446,7 +442,7 @@ class QueryingRelationsTest extends TestCase
         $this->assertEquals(2, count($related));
 
         foreach ($related as $key => $tag) {
-            $expected = 'tag'.($key + 1);
+            $expected = 'tag' . ($key + 1);
             $this->assertEquals($$expected->toArray(), $tag->toArray());
         }
     }
@@ -471,7 +467,7 @@ class QueryingRelationsTest extends TestCase
         $this->assertEquals(2, count($related));
 
         foreach ($related as $key => $tag) {
-            $expected = 'tag'.($key + 1);
+            $expected = 'tag' . ($key + 1);
             $this->assertEquals($$expected->toArray(), $tag->toArray());
         }
     }
@@ -497,7 +493,7 @@ class QueryingRelationsTest extends TestCase
         $this->assertEquals(2, count($related));
 
         foreach ($related as $key => $tag) {
-            $expected = 'tag'.($key + 1);
+            $expected = 'tag' . ($key + 1);
             $this->assertEquals($$expected->toArray(), $tag->toArray());
         }
     }
@@ -517,7 +513,7 @@ class QueryingRelationsTest extends TestCase
         $this->assertEquals(2, count($related));
 
         foreach ($related as $key => $tag) {
-            $expected = 'tag'.($key + 1);
+            $expected = 'tag' . ($key + 1);
             $this->assertEquals($$expected->toArray(), $tag->toArray());
         }
     }
@@ -552,9 +548,9 @@ class QueryingRelationsTest extends TestCase
     {
         $tag = Tag::create(['title' => 'php']);
         $tags = [
-                $tag,
-                ['title' => 'developer'],
-                new Tag(['title' => 'laravel']),
+            $tag,
+            ['title' => 'developer'],
+            new Tag(['title' => 'laravel']),
         ];
 
         $post = Post::createWith(['title' => 'foo', 'body' => 'bar'], compact('tags'));
@@ -702,9 +698,11 @@ class QueryingRelationsTest extends TestCase
         $yesterday = Carbon::now()->subDay();
         $dt = new DateTime();
 
-        $user = User::createWith(['name' => 'Some Name', 'dob' => $yesterday],
+        $user = User::createWith(
+            ['name' => 'Some Name', 'dob' => $yesterday],
             ['colleagues' => ['name' => 'Protectron', 'dob' => $dt],
-        ]);
+            ]
+        );
 
         $houwe = User::first();
         $colleague = $houwe->colleagues()->first();

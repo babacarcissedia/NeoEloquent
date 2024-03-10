@@ -90,7 +90,7 @@ trait SoftDeletes
      */
     public function trashed()
     {
-        return !is_null($this->{$this->getDeletedAtColumn()});
+        return ! is_null($this->{$this->getDeletedAtColumn()});
     }
 
     /**

@@ -3,8 +3,8 @@
 namespace Vinelab\NeoEloquent\Tests\Functional\Events;
 
 use Mockery as M;
-use Vinelab\NeoEloquent\Tests\TestCase;
 use Vinelab\NeoEloquent\Eloquent\Model;
+use Vinelab\NeoEloquent\Tests\TestCase;
 use Vinelab\NeoEloquent\Eloquent\SoftDeletes;
 
 class ModelEventsTest extends TestCase
@@ -160,7 +160,7 @@ class User extends Model
         });
 
         self::saved(function ($user) {
-            if (!$user->saved_event) {
+            if (! $user->saved_event) {
                 $user->saved_event = true;
                 $user->save();
             }
@@ -246,7 +246,7 @@ class Friend extends Model
         });
 
         self::saved(function ($friend) {
-            if (!$friend->saved_event) {
+            if (! $friend->saved_event) {
                 $friend->saved_event = true;
                 $friend->save();
             }
@@ -297,7 +297,8 @@ class OBOne extends Model
         });
         $dispatcher->shouldReceive('until')->andReturnUsing(function ($event, $model) {
             if (isset(static::$listenerStub[$event]) and strpos(static::$listenerStub[$event], '@') !== false) {
-                list($listener, $method) = explode('@', static::$listenerStub[$event]);
+                [$listener, $method] = explode('@', static::$listenerStub[$event]);
+
                 if (isset(static::$listenerStub[$event])) {
                     call_user_func([$listener, $method], $model);
                 }
@@ -307,7 +308,8 @@ class OBOne extends Model
         });
         $dispatcher->shouldReceive('dispatch')->andReturnUsing(function ($event, $model) {
             if (isset(static::$listenerStub[$event]) and strpos(static::$listenerStub[$event], '@') !== false) {
-                list($listener, $method) = explode('@', static::$listenerStub[$event]);
+                [$listener, $method] = explode('@', static::$listenerStub[$event]);
+
                 if (isset(static::$listenerStub[$event])) {
                     call_user_func([$listener, $method], $model);
                 }
@@ -340,7 +342,7 @@ class UserObserver
 
     public static function saved($ob)
     {
-        if (!$ob->ob_saved_event) {
+        if (! $ob->ob_saved_event) {
             $ob->ob_saved_event = true;
             $ob->save();
         }

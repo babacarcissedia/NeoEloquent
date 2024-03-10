@@ -2,17 +2,22 @@
 
 namespace Vinelab\NeoEloquent\Traits;
 
-use Laudis\Neo4j\Types\CypherList;
-use Laudis\Neo4j\Types\CypherMap;
-use Laudis\Neo4j\Types\Node;
-use Laudis\Neo4j\Types\Relationship;
 use RuntimeException;
+use Laudis\Neo4j\Types\Node;
+use Laudis\Neo4j\Types\CypherMap;
+use Laudis\Neo4j\Types\CypherList;
+use Laudis\Neo4j\Types\Relationship;
 
 trait ResultTrait
 {
-    public function getRecordsByPlaceholders(CypherList $result): array
+    /**
+     * @param CypherList $result
+     * @return array
+     */
+    public function getRecordsByPlaceholders($result): array
     {
         $recordsByKeys = [];
+
         /**
          * @var CypherMap $recordView
          */
@@ -26,7 +31,11 @@ trait ResultTrait
         return $recordsByKeys;
     }
 
-    public function getRelationshipRecords(CypherList $results): array
+    /**
+     * @param CypherList $results
+     * @return array
+     */
+    public function getRelationshipRecords($results): array
     {
         $relationships = [];
 
@@ -56,6 +65,7 @@ trait ResultTrait
     {
         /** @var CypherMap $map */
         $map = $result->first();
+
         return $map->first()->getValue();
     }
 

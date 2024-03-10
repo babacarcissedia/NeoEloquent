@@ -5,142 +5,46 @@ namespace Vinelab\NeoEloquent;
 use Closure;
 use DateTime;
 use Exception;
-use Laudis\Neo4j\Authentication\Authenticate;
-use Laudis\Neo4j\ClientBuilder;
-use Laudis\Neo4j\Contracts\AuthenticateInterface;
-use Laudis\Neo4j\Contracts\ClientInterface;
-use Laudis\Neo4j\Contracts\TransactionInterface;
-use Laudis\Neo4j\Databags\ResultSummary;
-use Laudis\Neo4j\Databags\SummarizedResult;
-use Laudis\Neo4j\Formatter\OGMFormatter;
-use Laudis\Neo4j\Formatter\SummarizedResultFormatter;
-use Laudis\Neo4j\Types\CypherList;
-use LogicException;
-use Neoxygen\NeoClient\Client;
 use Throwable;
-use Vinelab\NeoEloquent\Exceptions\InvalidCypherException;
-use Vinelab\NeoEloquent\Exceptions\QueryException;
-use Vinelab\NeoEloquent\Query\Builder as QueryBuilder;
-use Vinelab\NeoEloquent\Query\Expression;
-use Vinelab\NeoEloquent\Query\Grammars\CypherGrammar;
-use Vinelab\NeoEloquent\Schema\Builder;
-use Vinelab\NeoEloquent\Schema\Grammars\CypherGrammar as SchemaGrammar;
-use Vinelab\NeoEloquent\Query\Grammars\Grammar;
-use Vinelab\NeoEloquent\Query\Processors\Processor;
-
-use Illuminate\Contracts\Events\Dispatcher;
+use LogicException;
 use Illuminate\Support\Arr;
-use function sprintf;
+use Neoxygen\NeoClient\Client;
+use Laudis\Neo4j\ClientBuilder;
+use Laudis\Neo4j\Types\CypherList;
+use Vinelab\NeoEloquent\Schema\Builder;
+use Laudis\Neo4j\Formatter\OGMFormatter;
+use Illuminate\Contracts\Events\Dispatcher;
+use Laudis\Neo4j\Contracts\ClientInterface;
+use Laudis\Neo4j\Databags\SummarizedResult;
+use Laudis\Neo4j\Authentication\Authenticate;
+use Vinelab\NeoEloquent\Query\Grammars\Grammar;
+use Laudis\Neo4j\Contracts\TransactionInterface;
+use Laudis\Neo4j\Contracts\AuthenticateInterface;
+use Vinelab\NeoEloquent\Exceptions\QueryException;
+use Vinelab\NeoEloquent\Query\Processors\Processor;
+use Laudis\Neo4j\Formatter\SummarizedResultFormatter;
+use Vinelab\NeoEloquent\Query\Grammars\CypherGrammar;
+use Vinelab\NeoEloquent\Query\Builder as QueryBuilder;
+use Vinelab\NeoEloquent\Exceptions\InvalidCypherException;
 
-class Connection implements ConnectionInterface
+class Connection extends \Illuminate\Database\Connection implements ConnectionInterface
 {
-    const TYPE_HA = 'ha';
-    const TYPE_MULTI = 'multi';
-    const TYPE_SINGLE = 'single';
-
-    /**
-     * The reconnector instance for the connection.
-     *
-     * @var callable
-     */
-    protected $reconnector;
-
-    /**
-     * The query grammar implementation.
-     *
-     * @var \Illuminate\Database\Query\Grammars\Grammar
-     */
-    protected $queryGrammar;
-
-    /**
-     * The schema grammar implementation.
-     *
-     * @var \Illuminate\Database\Schema\Grammars\Grammar
-     */
-    protected $schemaGrammar;
-
-    /**
-     * The query post processor implementation.
-     *
-     * @var \Illuminate\Database\Query\Processors\Processor
-     */
-    protected $postProcessor;
-
-    /**
-     * The event dispatcher instance.
-     *
-     * @var Dispatcher
-     */
-    protected $events;
-
-    /**
-     * The number of active transactions.
-     *
-     * @var int
-     */
-    protected $transactions = 0;
-
-    /**
-     * All of the queries run against the connection.
-     *
-     * @var array
-     */
-    protected $queryLog = [];
-
-    /**
-     * Indicates whether queries are being logged.
-     *
-     * @var bool
-     */
-    protected $loggingQueries = false;
-
-    /**
-     * Indicates if the connection is in a "dry run".
-     *
-     * @var bool
-     */
-    protected $pretending = false;
-
-    /**
-     * The name of the connected database.
-     *
-     * @var string
-     */
-    protected $database;
-
-    /**
-     * The database connection configuration options.
-     *
-     * @var array
-     */
-    protected $config = [];
-
-    /**
-     * The Neo4j active client connection.
-     *
-     * @var ClientInterface
-     */
-    protected $neo;
-
-    /**
-     * The Neo4j database transaction.
-     *
-     * @var TransactionInterface
-     */
-    protected $transaction;
+    public const TYPE_HA = 'ha';
+    public const TYPE_MULTI = 'multi';
+    public const TYPE_SINGLE = 'single';
 
     /**
      * Default connection configuration parameters.
      *
      * @var array
      */
-    protected $defaults = array(
+    protected $defaults = [
         'scheme' => 'bolt',
         'host' => 'localhost',
         'port' => 7687,
         'username' => null,
         'password' => null,
-    );
+    ];
 
     /**
      * The neo4j driver name.
@@ -148,6 +52,7 @@ class Connection implements ConnectionInterface
      * @var string
      */
     protected $driverName = 'neo4j';
+    protected ?ClientInterface $neo = null;
 
     /**
      * Create a new database connection instance.
@@ -157,6 +62,13 @@ class Connection implements ConnectionInterface
     public function __construct(array $config = [])
     {
         $this->config = $config;
+
+        // We need to initialize a query grammar and the query post processors
+        // which are both very important parts of the database abstractions
+        // so we initialize these to their default values while starting.
+        $this->useDefaultQueryGrammar();
+
+        $this->useDefaultPostProcessor();
     }
 
     /**
@@ -164,7 +76,7 @@ class Connection implements ConnectionInterface
      *
      * @param \Illuminate\Database\Query\Grammars\Grammar $grammar
      */
-    public function setQueryGrammar(Grammar $grammar)
+    public function setQueryGrammar($grammar)
     {
         $this->queryGrammar = $grammar;
     }
@@ -204,16 +116,6 @@ class Connection implements ConnectionInterface
     }
 
     /**
-     * Set the query post processor used by the connection.
-     *
-     * @param \Illuminate\Database\Query\Processors\Processor $processor
-     */
-    public function setPostProcessor(Processor $processor)
-    {
-        $this->postProcessor = $processor;
-    }
-
-    /**
      * Get the event dispatcher used by the connection.
      *
      * @return Dispatcher
@@ -228,135 +130,9 @@ class Connection implements ConnectionInterface
      *
      * @return \Illuminate\Database\Query\Processors\Processor
      */
-    protected function getDefaultPostProcessor()
+    public function getDefaultPostProcessor()
     {
         return new Processor();
-    }
-
-    /**
-     * Determine if the connection in a "dry run".
-     *
-     * @return bool
-     */
-    public function pretending()
-    {
-        return $this->pretending === true;
-    }
-
-    // *
-    //  * Get the default fetch mode for the connection.
-    //  *
-    //  * @return int
-
-    // public function getFetchMode()
-    // {
-    //     return $this->fetchMode;
-    // }
-
-    /**
-     * Clear the query log.
-     */
-    public function flushQueryLog()
-    {
-        $this->queryLog = [];
-    }
-
-    /**
-     * Enable the query log on the connection.
-     */
-    public function enableQueryLog()
-    {
-        $this->loggingQueries = true;
-    }
-
-    /**
-     * Disable the query log on the connection.
-     */
-    public function disableQueryLog()
-    {
-        $this->loggingQueries = false;
-    }
-
-    /**
-     * Get the connection query log.
-     *
-     * @return array
-     */
-    public function getQueryLog()
-    {
-        return $this->queryLog;
-    }
-
-    /**
-     * Determine whether we're logging queries.
-     *
-     * @return bool
-     */
-    public function logging()
-    {
-        return $this->loggingQueries;
-    }
-
-    /**
-     * Set the default fetch mode for the connection.
-     *
-     * @param int $fetchMode
-     *
-     * @return int
-     */
-    public function setFetchMode($fetchMode)
-    {
-        $this->fetchMode = $fetchMode;
-    }
-
-    /**
-     * Set the event dispatcher instance on the connection.
-     *
-     * @param Dispatcher $events
-     */
-    public function setEventDispatcher(Dispatcher $events)
-    {
-        $this->events = $events;
-    }
-
-    /**
-     * Get a new raw query expression.
-     *
-     * @param mixed $value
-     *
-     * @return \Illuminate\Database\Query\Expression
-     */
-    public function raw($value)
-    {
-        return new Expression($value);
-    }
-
-    /**
-     * Run a select statement and return a single result.
-     *
-     * @param string $query
-     * @param array  $bindings
-     *
-     * @return mixed
-     */
-    public function selectOne($query, $bindings = [])
-    {
-        $records = $this->select($query, $bindings);
-
-        return count($records) > 0 ? reset($records) : null;
-    }
-
-    /**
-     * Run a select statement against the database.
-     *
-     * @param string $query
-     * @param array  $bindings
-     *
-     * @return array
-     */
-    public function selectFromWriteConnection($query, $bindings = [])
-    {
-        return $this->select($query, $bindings, false);
     }
 
     public function createConnection()
@@ -379,9 +155,9 @@ class Connection implements ConnectionInterface
     private function initBuilder(): ClientBuilder
     {
         $formatter = new SummarizedResultFormatter(OGMFormatter::create());
+
         return ClientBuilder::create()->withFormatter($formatter);
     }
-
 
     public function createMultipleConnectionsClient()
     {
@@ -401,13 +177,13 @@ class Connection implements ConnectionInterface
     }
 
     /**
-     * Get the currenty active database client.
+     * Get the currently active database client.
      *
      * @return ClientInterface
      */
     public function getClient()
     {
-        if (!$this->neo) {
+        if (is_null($this->neo)) {
             $this->setClient($this->createSingleConnectionClient());
         }
 
@@ -490,11 +266,6 @@ class Connection implements ConnectionInterface
         return Arr::get($config, 'password', $this->defaults['password']);
     }
 
-    public function getConfig()
-    {
-        return $this->config;
-    }
-
     /**
      * Get an option from the configuration options.
      *
@@ -536,11 +307,11 @@ class Connection implements ConnectionInterface
      *
      * @return SummarizedResult
      */
-    public function select($query, $bindings = array())
+    public function select($query, $bindings = [], $useReadPdo = false)
     {
         return $this->run($query, $bindings, function (self $me, $query, array $bindings) {
             if ($me->pretending()) {
-                return array();
+                return [];
             }
 
             // For select statements, we'll simply execute the query and return an array
@@ -561,7 +332,7 @@ class Connection implements ConnectionInterface
      *
      * @return mixed
      */
-    public function insert($query, $bindings = array())
+    public function insert($query, $bindings = [])
     {
         return $this->statement($query, $bindings, true);
     }
@@ -600,7 +371,7 @@ class Connection implements ConnectionInterface
      *
      * @return SummarizedResult
      */
-    public function affectingStatement($query, $bindings = array())
+    public function affectingStatement($query, $bindings = [])
     {
         return $this->run($query, $bindings, function (self $me, $query, array $bindings) {
             if ($me->pretending()) {
@@ -627,7 +398,7 @@ class Connection implements ConnectionInterface
      *
      * @return CypherList|bool
      */
-    public function statement($query, $bindings = array(), $rawResults = false)
+    public function statement($query, $bindings = [], $rawResults = false)
     {
         return $this->run($query, $bindings, function (self $me, $query, array $bindings) use ($rawResults) {
             if ($me->pretending()) {
@@ -686,7 +457,7 @@ class Connection implements ConnectionInterface
     {
         $grammar = $this->getQueryGrammar();
 
-        $prepared = array();
+        $prepared = [];
 
         foreach ($bindings as $key => $binding) {
             // The bindings are collected in a little bit different way than
@@ -716,7 +487,7 @@ class Connection implements ConnectionInterface
             // will not accept replacing "id(n)" with a value
             // which have been previously processed by the grammar
             // to be _nodeId instead.
-            if (!is_array($binding)) {
+            if (! is_array($binding)) {
                 $binding = [$binding];
             }
 
@@ -724,7 +495,7 @@ class Connection implements ConnectionInterface
                 // We should not pass any numeric key-value items since the Neo4j client expects
                 // a JSON dictionary.
                 if (is_numeric($property)) {
-                    $property = (!is_numeric($key)) ? $key : 'id';
+                    $property = (! is_numeric($key)) ? $key : 'id';
                 }
 
                 if ($property == 'id') {
@@ -752,7 +523,7 @@ class Connection implements ConnectionInterface
      */
     public function getQueryGrammar()
     {
-        if (!$this->queryGrammar) {
+        if (! $this->queryGrammar) {
             $this->useDefaultQueryGrammar();
         }
 
@@ -781,11 +552,11 @@ class Connection implements ConnectionInterface
      */
     public function isBinding(array $binding)
     {
-        if (!empty($binding)) {
+        if (! empty($binding)) {
             // A binding is valid only when the key is not a number
             $keys = array_keys($binding);
 
-            return !is_numeric(reset($keys));
+            return ! is_numeric(reset($keys));
         }
 
         return false;
@@ -796,9 +567,9 @@ class Connection implements ConnectionInterface
      *
      * @param Closure $callback
      *
+     * @throws Throwable
      * @return mixed
      *
-     * @throws Throwable
      */
     public function transaction(Closure $callback, $attempts = 1)
     {
@@ -871,7 +642,7 @@ class Connection implements ConnectionInterface
     /**
      * Rollback the active database transaction.
      */
-    public function rollBack()
+    public function rollBack($toLevel = null)
     {
         if ($this->transactions == 1) {
             $this->transactions = 0;
@@ -935,7 +706,9 @@ class Connection implements ConnectionInterface
     public function query()
     {
         return new QueryBuilder(
-            $this, $this->getQueryGrammar(), $this->getPostProcessor()
+            $this,
+            $this->getQueryGrammar(),
+            $this->getPostProcessor()
         );
     }
 
@@ -946,9 +719,9 @@ class Connection implements ConnectionInterface
      * @param array   $bindings
      * @param Closure $callback
      *
+     * @throws QueryException
      * @return mixed
      *
-     * @throws QueryException
      */
     protected function run($query, $bindings, Closure $callback)
     {
@@ -961,9 +734,9 @@ class Connection implements ConnectionInterface
             $result = $callback($this, $query, $bindings);
         }
 
-            // If an exception occurs when attempting to run a query, we'll format the error
-            // message to include the bindings with Cypher, which will make this exception a
-            // lot more helpful to the developer instead of just the database's errors.
+        // If an exception occurs when attempting to run a query, we'll format the error
+        // message to include the bindings with Cypher, which will make this exception a
+        // lot more helpful to the developer instead of just the database's errors.
         catch (Exception $e) {
             $this->handleExceptions($query, $bindings, $e);
         }
@@ -985,9 +758,9 @@ class Connection implements ConnectionInterface
      * @param array    $bindings
      * @param Closure $callback
      *
+     * @throws InvalidCypherException
      * @return mixed
      *
-     * @throws InvalidCypherException
      */
     protected function runQueryCallback($query, $bindings, Closure $callback)
     {
@@ -1003,7 +776,9 @@ class Connection implements ConnectionInterface
         // lot more helpful to the developer instead of just the database's errors.
         catch (Exception $e) {
             throw new QueryException(
-                $query, $this->prepareBindings($bindings), $e
+                $query,
+                $this->prepareBindings($bindings),
+                $e
             );
         }
 
@@ -1018,32 +793,31 @@ class Connection implements ConnectionInterface
      * @param array                                     $bindings
      * @param Closure $callback
      *
+     * @throws Exceptions\Exception
      * @return mixed
      *
-     * @throws Exceptions\Exception
      */
-    protected function tryAgainIfCausedByLostConnection(QueryException $e, $query, $bindings, Closure $callback)
-    {
-        if ($this->causedByLostConnection($e->getPrevious())) {
-            $this->reconnect();
-
-            return $this->runQueryCallback($query, $bindings, $callback);
-        }
-
-        throw $e;
-    }
+    //    protected function tryAgainIfCausedByLostConnection(QueryException $e, $query, $bindings, Closure $callback)
+    //    {
+    //        if ($this->causedByLostConnection($e->getPrevious())) {
+    //            $this->reconnect();
+    //
+    //            return $this->runQueryCallback($query, $bindings, $callback);
+    //        }
+    //
+    //        throw $e;
+    //    }
 
     /**
      * Determine if the given exception was caused by a lost connection.
      *
-     * @param  \Illuminate\Database\QueryException
+     * @param  Throwable
      * @return bool
      */
-    protected function causedByLostConnection(QueryException $e)
+    protected function causedByLostConnection(Throwable $e)
     {
         return str_contains($e->getPrevious()->getMessage(), 'server has gone away');
     }
-
 
     /**
      * Disconnect from the underlying PDO connection.
@@ -1071,7 +845,7 @@ class Connection implements ConnectionInterface
     /**
      * Reconnect to the database if a PDO connection is missing.
      */
-    protected function reconnectIfMissingConnection()
+    public function reconnectIfMissingConnection()
     {
         if (is_null($this->getClient())) {
             $this->reconnect();
@@ -1116,7 +890,7 @@ class Connection implements ConnectionInterface
     protected function fireConnectionEvent($event)
     {
         if (isset($this->events)) {
-            $this->events->dispatch('connection.'.$this->getName().'.'.$event, $this);
+            $this->events->dispatch('connection.' . $this->getName() . '.' . $event, $this);
         }
     }
 
@@ -1144,16 +918,6 @@ class Connection implements ConnectionInterface
         $this->reconnector = $reconnector;
 
         return $this;
-    }
-
-    /**
-     * Set the schema grammar used by the connection.
-     *
-     * @param  \Illuminate\Database\Schema\Grammars\Grammar
-     */
-    public function setSchemaGrammar(SchemaGrammar $grammar)
-    {
-        $this->schemaGrammar = $grammar;
     }
 
     /**
@@ -1206,23 +970,27 @@ class Connection implements ConnectionInterface
     {
         $uri = '';
         $scheme = $this->getScheme($config);
+
         if ($scheme) {
             $uri .= $scheme . '://';
         }
 
         $host = $this->getHost($config);
+
         if ($host) {
             $uri .= '@' . $host;
         }
 
         $port = $this->getPort($config);
+
         if ($port) {
             $uri .= ':' . $port;
         }
 
         $database = $this->getDatabase($config);
+
         if ($database) {
-            $uri .= '?database='.urlencode($database);
+            $uri .= '?database=' . urlencode($database);
         }
 
         return $uri;
@@ -1235,10 +1003,36 @@ class Connection implements ConnectionInterface
     {
         $username = $this->getUsername($this->getConfig());
         $password = $this->getPassword($this->getConfig());
+
         if ($username && $password) {
             return Authenticate::basic($username, $password);
         }
 
         return Authenticate::disabled();
+    }
+
+    public function table($table, $as = null)
+    {
+        // TODO: Implement table() method.
+    }
+
+    public function raw($value)
+    {
+        // TODO: Implement raw() method.
+    }
+
+    public function selectOne($query, $bindings = [], $useReadPdo = true)
+    {
+        // TODO: Implement selectOne() method.
+    }
+
+    public function cursor($query, $bindings = [], $useReadPdo = true)
+    {
+        // TODO: Implement cursor() method.
+    }
+
+    public function getDatabaseName()
+    {
+        // TODO: Implement getDatabaseName() method.
     }
 }

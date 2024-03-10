@@ -2,8 +2,8 @@
 
 namespace Vinelab\NeoEloquent\Schema\Grammars;
 
-use Vinelab\NeoEloquent\Schema\Blueprint;
 use Illuminate\Support\Fluent;
+use Vinelab\NeoEloquent\Schema\Blueprint;
 
 class CypherGrammar extends Grammar
 {
@@ -18,9 +18,9 @@ class CypherGrammar extends Grammar
     public function compileDrop(Blueprint $blueprint, Fluent $command)
     {
         $match = $this->compileFrom($blueprint);
-        $label = $this->prepareLabels(array($blueprint));
+        $label = $this->prepareLabels([$blueprint]);
 
-        return $match.' REMOVE n'.$label;
+        return $match . ' REMOVE n' . $label;
     }
 
     /**
@@ -47,7 +47,7 @@ class CypherGrammar extends Grammar
     {
         $match = $this->compileFrom($label);
 
-        return $match.'  RETURN n LIMIT 1;';
+        return $match . '  RETURN n LIMIT 1;';
     }
 
     /**
@@ -59,9 +59,9 @@ class CypherGrammar extends Grammar
      */
     public function compileRelationExists($relation)
     {
-        $relation = mb_strtoupper($this->prepareLabels(array($relation)));
+        $relation = mb_strtoupper($this->prepareLabels([$relation]));
 
-        return "MATCH n-[r$relation]->m RETURN r LIMIT 1";
+        return "MATCH n-[r{$relation}]->m RETURN r LIMIT 1";
     }
 
     /**
@@ -75,10 +75,10 @@ class CypherGrammar extends Grammar
     public function compileRenameLabel(Blueprint $blueprint, Fluent $command)
     {
         $match = $this->compileFrom($blueprint);
-        $from = $this->prepareLabels(array($blueprint));
-        $to = $this->prepareLabels(array($command->to));
+        $from = $this->prepareLabels([$blueprint]);
+        $to = $this->prepareLabels([$command->to]);
 
-        return $match." REMOVE n$from SET n$to";
+        return $match . " REMOVE n{$from} SET n{$to}";
     }
 
     /**
@@ -147,7 +147,7 @@ class CypherGrammar extends Grammar
         $label = $this->wrapLabel($blueprint);
         $property = $this->propertize($command->property);
 
-        return "$operation INDEX ON $label($property)";
+        return "{$operation} INDEX ON {$label}({$property})";
     }
 
     /**
@@ -164,7 +164,7 @@ class CypherGrammar extends Grammar
         $label = $this->wrapLabel($blueprint);
         $property = $this->propertize($command->property);
 
-        return "$operation CONSTRAINT ON (n$label) ASSERT n.$property IS UNIQUE";
+        return "{$operation} CONSTRAINT ON (n{$label}) ASSERT n.{$property} IS UNIQUE";
     }
 
     /**
@@ -185,10 +185,10 @@ class CypherGrammar extends Grammar
 
         // every label must begin with a ':' so we need to check
         // and reformat if need be.
-        $labels = ':'.preg_replace('/^:/', '', $labels);
+        $labels = ':' . preg_replace('/^:/', '', $labels);
 
         // now we add the default placeholder for this node
-        $labels = $this->modelAsNode().$labels;
+        $labels = $this->modelAsNode() . $labels;
 
         return sprintf('MATCH (%s)', $labels);
     }

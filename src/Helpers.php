@@ -15,4 +15,13 @@ class Helpers
     {
         return is_array($array) && array_keys($array) !== range(0, count($array) - 1);
     }
+
+    public static function crash()
+    {
+        try {
+            throw new \Exception('hit');
+        } catch (\Exception $e) {
+            dd($e->getTraceAsString());
+        }
+    }
 }
