@@ -186,7 +186,7 @@ class BuilderTest extends TestCase
     {
         // when requesting a Node by its id we need to use
         // 'id(n)' but that won't be helpful when returned or dealt with
-        // so we need to tranform it back to 'id'
+        // so we need to transform it back to 'id'
         $this->builder->where('id(n)', 200);
 
         $this->assertEquals([

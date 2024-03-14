@@ -3,6 +3,7 @@
 namespace Vinelab\NeoEloquent\Schema;
 
 use Closure;
+use Laudis\Neo4j\Types\CypherList;
 
 class Builder extends \Illuminate\Database\Schema\Builder
 {
@@ -172,5 +173,22 @@ you can do so by passing additional arguments to default migration command like:
     public function dropAllTables()
     {
         $this->connection->statement('match (n) detach delete n');
+    }
+
+    public function getColumnListing($table)
+    {
+        /** @var CypherList $results */
+        $results = $this->getColumns($table)->getResults();
+        $columns = [];
+
+        if ($results->count() == 0) {
+            return [];
+        }
+
+        foreach ($results->first()->get('columns') as $value) {
+            $columns[] = $value;
+        }
+
+        return $columns;
     }
 }

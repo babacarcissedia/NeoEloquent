@@ -8,6 +8,12 @@ Neo4j Graph Eloquent Driver for Laravel.
 - Add linter
 - Add static code analysis
 - Extend from Laravel classes for better support
+- eloquent
+  - truncate
+  - db wipe
+  - no id() method from ne4j, use primary key from model
+- features
+  - migration fix
 
 Last point above opens the door for current Laravel Ecosystem (ie Filament)
 

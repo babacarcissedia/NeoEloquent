@@ -2,9 +2,7 @@
 
 namespace Vinelab\NeoEloquent\Schema\Grammars;
 
-use Illuminate\Database\Schema\Grammars\Grammar as IlluminateSchemaGrammar;
-
-class Grammar extends IlluminateSchemaGrammar
+class Grammar extends \Illuminate\Database\Schema\Grammars\Grammar
 {
     /**
      * Make sure the label is wrapped with backticks.

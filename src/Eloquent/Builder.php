@@ -4,6 +4,7 @@ namespace Vinelab\NeoEloquent\Eloquent;
 
 use Closure;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Laudis\Neo4j\Types\Node;
 use InvalidArgumentException;
 use Vinelab\NeoEloquent\Helpers;
@@ -55,17 +56,19 @@ class Builder extends \Illuminate\Database\Eloquent\Builder
     {
         // If the dev did not specify the $id as an int it would break
         // so we cast it anyways.
-
+        // edit: not anymore
+        // array_map('intval', $id)
         if (is_array($id)) {
-            return $this->findMany(array_map('intval', $id), $properties);
+            return $this->findMany($id, $properties);
         }
 
-        if ($this->model->getKeyName() === 'id') {
-            // ids are treated differently in neo4j so we have to adapt the query to them.
-            $this->query->where($this->model->getKeyName() . '(' . $this->query->modelAsNode() . ')', '=', (int) $id);
-        } else {
-            $this->query->where($this->model->getKeyName(), '=', $id);
-        }
+        // TODO: remove id
+        //        if ($this->model->getKeyName() === 'id') {
+        //            // ids are treated differently in neo4j so we have to adapt the query to them.
+        //            $this->query->where($this->model->getKeyName() . '(' . $this->query->modelAsNode() . ')', '=', (int) $id);
+        //        } else {
+        $this->query->where($this->model->getKeyName(), '=', $id);
+        //        }
 
         return $this->first($properties);
     }
@@ -276,9 +279,10 @@ class Builder extends \Illuminate\Database\Eloquent\Builder
         $attributes = array_merge($node->getProperties()->toArray(), $model->getAttributes());
 
         // we will check to see whether we should use Neo4j's built-in ID.
-        if ($model->getKeyName() === 'id') {
-            $attributes['id'] = $node->getId();
-        }
+        // TODO: remove id
+        //        if ($model->getKeyName() === 'id') {
+        //            $attributes['id'] = $node->getId();
+        //        }
 
         // This is a regular record that we should deal with the normal way, creating an instance
         // of the model out of the fetched attributes.
@@ -533,9 +537,10 @@ class Builder extends \Illuminate\Database\Eloquent\Builder
 
             // WARNING: Do this after setting all the attributes to avoid overriding it
             // with a null value or colliding it with something else, some Daenerys dragons maybe ?!
-            if (! is_null($columns) && in_array('id', $columns)) {
-                $attributes['id'] = $row['id(' . $this->query->modelAsNode() . ')'];
-            }
+            // TODO: id removal
+            //            if (! is_null($columns) && in_array('id', $columns)) {
+            //                $attributes['id'] = $row['id(' . $this->query->modelAsNode() . ')'];
+            //            }
         } elseif ($result instanceof Node) {
             $attributes = $this->getNodeAttributes($result);
         } elseif ($result instanceof Row) {
@@ -558,7 +563,8 @@ class Builder extends \Illuminate\Database\Eloquent\Builder
         // Add the node id to the attributes since \Everyman\Neo4j\Node
         // does not consider it to be a property, it is treated differently
         // and available through the getId() method.
-        $attributes['id'] = $node->getId();
+        // TODO: remove id
+        $attributes['_elementId'] = $node->getId();
 
         return $attributes;
     }
@@ -1358,12 +1364,27 @@ class Builder extends \Illuminate\Database\Eloquent\Builder
      */
     protected function prefixWheres(array $wheres, $prefix)
     {
+        dump(array_map(function ($where) use ($prefix) {
+            if ($where['type'] == 'Nested') {
+                $where['query']->wheres = $this->prefixWheres($where['query']->wheres, $prefix);
+            } elseif ($where['type'] != 'Carried' && strpos($where['column'], '.') == false) {
+                $column = $where['column'];
+                // TODO: remove id
+                $where['column'] = $prefix . '.' . $column;
+                //                $where['column'] = ($this->isId($column)) ? $column : $prefix . '.' . $column;
+            }
+
+            return $where;
+        }, $wheres));
+
         return array_map(function ($where) use ($prefix) {
             if ($where['type'] == 'Nested') {
                 $where['query']->wheres = $this->prefixWheres($where['query']->wheres, $prefix);
             } elseif ($where['type'] != 'Carried' && strpos($where['column'], '.') == false) {
                 $column = $where['column'];
-                $where['column'] = ($this->isId($column)) ? $column : $prefix . '.' . $column;
+                // TODO: remove id
+                $where['column'] = $prefix . '.' . $column;
+                //                $where['column'] = ($this->isId($column)) ? $column : $prefix . '.' . $column;
             }
 
             return $where;
@@ -1400,5 +1421,50 @@ class Builder extends \Illuminate\Database\Eloquent\Builder
     public function __clone()
     {
         $this->query = clone $this->query;
+    }
+
+    /**
+     * Add the "updated at" column to an array of values.
+     *
+     * @param  array  $values
+     * @return array
+     */
+    protected function addUpdatedAtColumn(array $values)
+    {
+        if (! $this->model->usesTimestamps() ||
+            is_null($this->model->getUpdatedAtColumn())) {
+            return $values;
+        }
+
+        $column = $this->model->getUpdatedAtColumn();
+
+        if (! array_key_exists($column, $values)) {
+            $timestamp = $this->model->freshTimestampString();
+
+            if (
+                $this->model->hasSetMutator($column)
+                || $this->model->hasAttributeSetMutator($column)
+                || $this->model->hasCast($column)
+            ) {
+                $timestamp = $this->model->newInstance()
+                    ->forceFill([$column => $timestamp])
+                    ->getAttributes()[$column] ?? $timestamp;
+            }
+
+            $values = array_merge([$column => $timestamp], $values);
+        }
+
+        $segments = preg_split('/\s+as\s+/i', $this->query->from);
+
+        // Only real change here
+        $qualifiedColumn = strtolower(end($segments)) . '.' . $column;
+
+        $values[Str::replace('.', '_', $qualifiedColumn)] = Arr::get($values, $qualifiedColumn, $values[$column]);
+
+        // End Only real change here
+
+        unset($values[$column]);
+
+        return $values;
     }
 }

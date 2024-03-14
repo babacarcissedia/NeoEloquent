@@ -64,7 +64,7 @@ class CypherGrammar extends Grammar
     /**
      * Compile a single component.
      *
-     * @param \Illuminate\Database\Query\Builder $query
+     * @param \Vinelab\NeoEloquent\Query\Builder $query
      * @param array                              $components
      * @param string                             $component
      *
@@ -181,9 +181,11 @@ class CypherGrammar extends Grammar
         // Get the relationship ready for query
         $relationshipLabel = $this->prepareRelation($relationship, $relatedNode);
 
+        $property = $parentNode . '.' . $property;
+        // TODO: remove id
         // We treat node ids differently here in Cypher
         // so we will have to turn it into something like id(node)
-        $property = $property == 'id' ? 'id(' . $parentNode . ')' : $parentNode . '.' . $property;
+        //        $property = $property == 'id' ? 'id(' . $parentNode . ')' : $parentNode . '.' . $property;
 
         return '(' . $parentNode . $parentLabels . '), '
                 . $this->craftRelation($parentNode, $relationshipLabel, $relatedNode, $relatedLabels, $direction);
@@ -210,7 +212,9 @@ class CypherGrammar extends Grammar
 
         // We treat node ids differently here in Cypher
         // so we will have to turn it into something like id(node)
-        $property = $property == 'id' ? 'id(' . $parent['node'] . ')' : $parent['node'] . '.' . $property;
+        // TODO: remove id
+        //        $property = $property == 'id' ? 'id(' . $parent['node'] . ')' : $parent['node'] . '.' . $property;
+        $property = $parent['node'] . '.' . $property;
 
         return '(' . $parent['node'] . $parentLabels . '), '
                 . $this->craftRelation($parent['node'], 'r', $relatedNode, '', $direction);
@@ -275,7 +279,7 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    public function compileFrom(\Illuminate\Database\Query\Builder $query, $labels, $forceMatch = false)
+    public function compileFrom($query, $labels, $forceMatch = false)
     {
         if(! $forceMatch) {
             // Only compile when no relational matches are specified,
@@ -303,7 +307,7 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    public function compileWheres(\Illuminate\Database\Query\Builder $query)
+    public function compileWheres($query)
     {
         $cypher = [];
 
@@ -397,6 +401,17 @@ class CypherGrammar extends Grammar
     protected function compileOffset($query, $offset)
     {
         return 'SKIP ' . (int) $offset;
+    }
+
+    /**
+     * Compile a truncate table statement into SQL.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     * @return array
+     */
+    public function compileTruncate($query)
+    {
+        return [sprintf('match (n:%s) detach delete n', $query->from) => []];
     }
 
     /**
@@ -582,7 +597,7 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    protected function whereIn(\Illuminate\Database\Query\Builder $query, $where)
+    protected function whereIn($query, $where)
     {
         $values = $this->valufy($where['values']);
 
@@ -597,7 +612,7 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    protected function whereNotIn(\Illuminate\Database\Query\Builder $query, $where)
+    protected function whereNotIn($query, $where)
     {
         $values = $this->valufy($where['values']);
 
@@ -612,7 +627,7 @@ class CypherGrammar extends Grammar
      *
      * @return string
      */
-    protected function whereNested(\Illuminate\Database\Query\Builder $query, $where)
+    protected function whereNested($query, $where)
     {
         $nested = $where['query'];
 
@@ -770,13 +785,14 @@ class CypherGrammar extends Grammar
         $startNode = $this->modelAsNode($attributes['start']['label']);
         $startLabel = $this->prepareLabels($attributes['start']['label']);
 
-        if ($startKey === 'id') {
-            $startKey = 'id(' . $startNode . ')';
-            $startId = (int) $attributes['start']['id']['value'];
-        } else {
-            $startKey = $startNode . '.' . $startKey;
-            $startId = '"' . addslashes($attributes['start']['id']['value']) . '"';
-        }
+        // TODO: remove id
+        //        if ($startKey === 'id') {
+        //            $startKey = 'id(' . $startNode . ')';
+        //            $startId = (int) $attributes['start']['id']['value'];
+        //        } else {
+        $startKey = $startNode . '.' . $startKey;
+        $startId = '"' . addslashes($attributes['start']['id']['value']) . '"';
+        //        }
 
         $startCondition = $startKey . '=' . $startId;
 
@@ -789,14 +805,15 @@ class CypherGrammar extends Grammar
             $endLabel = $this->prepareLabels($attributes['end']['label']);
 
             if ($attributes['end']['id']['value']) {
-                if ($endKey === 'id') {
-                    // when it's 'id' it has to be numeric
-                    $endKey = 'id(' . $endNode . ')';
-                    $endId = (int) $attributes['end']['id']['value'];
-                } else {
-                    $endKey = $endNode . '.' . $endKey;
-                    $endId = '"' . addslashes($attributes['end']['id']['value']) . '"';
-                }
+                // TODO: remove id
+                //                if ($endKey === 'id') {
+                //                    // when it's 'id' it has to be numeric
+                //                    $endKey = 'id(' . $endNode . ')';
+                //                    $endId = (int) $attributes['end']['id']['value'];
+                //                } else {
+                $endKey = $endNode . '.' . $endKey;
+                $endId = '"' . addslashes($attributes['end']['id']['value']) . '"';
+                //                }
             }
 
             $endCondition = (! empty($endId)) ? $endKey . '=' . $endId : '';
@@ -855,9 +872,10 @@ class CypherGrammar extends Grammar
                 unset($properties[$key]);
 
                 // we do not accept IDs for relations
-                if ($key === 'id') {
-                    continue;
-                }
+                // TODO: remove id
+                //                if ($key === 'id') {
+                //                    continue;
+                //                }
                 $properties[] = 'r.' . $key . ' = ' . $this->valufy($value);
             }
 
@@ -978,12 +996,13 @@ class CypherGrammar extends Grammar
                 // CREATE these relationships.
                 $attachments['matches'][] = "({$identifier}{$nodeLabel})";
 
-                if ($idKey === 'id') {
-                    // Native Neo4j IDs are treated differently
-                    $attachments['wheres'][] = "id({$identifier}) IN [" . implode(', ', $attach) . ']';
-                } else {
-                    $attachments['wheres'][] = "{$identifier}.{$idKey} IN [\"" . implode('", "', $attach) . '"]';
-                }
+                // TODO: remove id
+                //                if ($idKey === 'id') {
+                //                    // Native Neo4j IDs are treated differently
+                //                    $attachments['wheres'][] = "id({$identifier}) IN [" . implode(', ', $attach) . ']';
+                //                } else {
+                $attachments['wheres'][] = "{$identifier}.{$idKey} IN [\"" . implode('", "', $attach) . '"]';
+                //                }
 
                 $attachments['relations'][] = $this->craftRelation(
                     $parentNode,
@@ -1027,7 +1046,7 @@ class CypherGrammar extends Grammar
         return $cypher;
     }
 
-    public function compileAggregatcompileAgge(\Illuminate\Database\Query\Builder $query, $aggregate)
+    public function compileAggregatcompileAgge($query, $aggregate)
     {
         $distinct = null;
         $function = $aggregate['function'];

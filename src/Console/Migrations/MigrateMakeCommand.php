@@ -120,4 +120,9 @@ class MigrateMakeCommand extends BaseCommand
             ['label', null, InputOption::VALUE_OPTIONAL, 'The label to migrate.'],
         ];
     }
+
+    public function __invoke()
+    {
+        $this->fire();
+    }
 }

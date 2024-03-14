@@ -189,10 +189,10 @@ abstract class Grammar extends \Illuminate\Database\Query\Grammars\Grammar
         // everything, we need to check whether the primaryKey is meant to be returned
         // since Neo4j's way of evaluating returned properties for the Node id is
         // different: id(n) instead of n.id
-
-        if ($value == 'id') {
-            return 'id(' . $this->query->modelAsNode() . ')';
-        }
+        // TODO: remove id
+        //        if ($value == 'id') {
+        //            return 'id(' . $this->query->modelAsNode() . ')';
+        //        }
 
         return $this->query->modelAsNode() . '.' . $value;
     }

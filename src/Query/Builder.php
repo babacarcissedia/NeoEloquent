@@ -28,14 +28,14 @@ class Builder extends \Illuminate\Database\Query\Builder
     /**
      * The database connection instance.
      *
-     * @var Vinelab\NeoEloquent\Connection
+     * @var \Vinelab\NeoEloquent\Connection
      */
     public $connection;
 
     /**
      * The database active client handler.
      *
-     * @var Neoxygen\NeoClient\Client
+     * @var \Neoxygen\NeoClient\Client
      */
     protected $client;
 
@@ -214,9 +214,9 @@ class Builder extends \Illuminate\Database\Query\Builder
      */
     protected $bindingBackups = [];
 
-    public function __construct(ConnectionInterface $connection, Grammar $grammar = null, $processor = null)
+    public function __construct(ConnectionInterface $connection, $grammar = null, $processor = null)
     {
-        parent::__construct($connection, $grammar);
+        // TODO: remove ?
         $this->grammar = $grammar ?: $connection->getQueryGrammar();
         $this->grammar->setQuery($this);
         $this->processor = $processor ?: $connection->getPostProcessor();
@@ -491,21 +491,24 @@ class Builder extends \Illuminate\Database\Query\Builder
 
         // When the column is an id we need to treat it as a graph db id and transform it
         // into the form of id(n) and the typecast the value into int.
-        if ($column == 'id') {
-            $column = 'id(' . $this->modelAsNode() . ')';
-            $value = intval($value);
-        }
+        // TODO: remove id
+        //        if ($column == 'id') {
+        //            $column = 'id(' . $this->modelAsNode() . ')';
+        //            $value = intval($value);
+        //        } else
         // When it's been already passed in the form of NodeLabel.id we'll have to
         // re-format it into id(NodeLabel)
-        elseif (preg_match('/^.*\.id$/', $column)) {
+        if (preg_match('/^.*\.id$/', $column)) {
             $parts = explode('.', $column);
-            $column = sprintf('%s(%s)', $parts[1], $parts[0]);
-            $value = intval($value);
+            $column = sprintf('%s.%s', strtolower($parts[0]), $parts[1]);
+            // TODO: remove id
+            //            $value = intval($value);
         }
-        // Also if the $column is already a form of id(n) we'd have to type-cast the value into int.
-        elseif (preg_match('/^id\(.*\)$/', $column)) {
-            $value = intval($value);
-        }
+        // TODO: remove id
+        //        // Also if the $column is already a form of id(n) we'd have to type-cast the value into int.
+        //        else if (preg_match('/^id\(.*\)$/', $column)) {
+        //            $value = intval($value);
+        //        }
 
         $binding = $this->prepareBindingColumn($column);
 
@@ -1348,9 +1351,10 @@ class Builder extends \Illuminate\Database\Query\Builder
 
         $property = $column;
 
-        if ($column == 'id') {
-            $column = 'id(' . $this->modelAsNode() . ')';
-        }
+        // TODO: remove id
+        //        if ($column == 'id') {
+        //            $column = 'id(' . $this->modelAsNode() . ')';
+        //        }
 
         $this->wheres[] = compact('type', 'column', 'values', 'boolean');
 
@@ -1374,9 +1378,10 @@ class Builder extends \Illuminate\Database\Query\Builder
     {
         $type = $not ? 'NotNull' : 'Null';
 
-        if ($column == 'id') {
-            $column = 'id(' . $this->modelAsNode() . ')';
-        }
+        // TODO: remove id
+        //        if ($column == 'id') {
+        //            $column = 'id(' . $this->modelAsNode() . ')';
+        //        }
 
         $binding = $this->prepareBindingColumn($column);
 

@@ -8,7 +8,6 @@ use Exception;
 use Throwable;
 use LogicException;
 use Illuminate\Support\Arr;
-use Neoxygen\NeoClient\Client;
 use Laudis\Neo4j\ClientBuilder;
 use Laudis\Neo4j\Types\CypherList;
 use Vinelab\NeoEloquent\Schema\Builder;
@@ -309,6 +308,11 @@ class Connection extends \Illuminate\Database\Connection implements ConnectionIn
      */
     public function select($query, $bindings = [], $useReadPdo = false)
     {
+        if (isset($bindings['userid']) && $bindings['userid'] == '1') {
+            dd($bindings);
+            Helpers::crash();
+        }
+
         return $this->run($query, $bindings, function (self $me, $query, array $bindings) {
             if ($me->pretending()) {
                 return [];
@@ -498,9 +502,10 @@ class Connection extends \Illuminate\Database\Connection implements ConnectionIn
                     $property = (! is_numeric($key)) ? $key : 'id';
                 }
 
-                if ($property == 'id') {
-                    $property = $grammar->getIdReplacement($property);
-                }
+                // TODO: remove id
+                //                if ($property == 'id') {
+                //                    $property = $grammar->getIdReplacement($property);
+                //                }
 
                 // when the value is an array means we have
                 // a property as an array so we'll
@@ -1011,9 +1016,16 @@ class Connection extends \Illuminate\Database\Connection implements ConnectionIn
         return Authenticate::disabled();
     }
 
+    /**
+     * Begin a fluent query against a database table.
+     *
+     * @param  \Closure|\Illuminate\Database\Query\Builder|\Illuminate\Contracts\Database\Query\Expression|string  $table
+     * @param  string|null  $as
+     * @return \Illuminate\Database\Query\Builder
+     */
     public function table($table, $as = null)
     {
-        // TODO: Implement table() method.
+        return $this->query()->from($table, $as);
     }
 
     public function raw($value)

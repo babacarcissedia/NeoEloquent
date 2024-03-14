@@ -7,6 +7,14 @@ use Vinelab\NeoEloquent\Schema\Blueprint;
 
 class CypherGrammar extends Grammar
 {
+    public function compileColumns(string $label)
+    {
+        // only if node have created_at
+        $order = 'order by n.created_at desc';
+        $statement = sprintf('Match (n:%s) return keys(properties(n)) as columns %s limit 1', $label, $order);
+
+        return $statement;
+    }
     /**
      * Compile a drop table command.
      *

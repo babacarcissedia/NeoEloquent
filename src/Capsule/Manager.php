@@ -9,7 +9,7 @@ use Illuminate\Support\Traits\CapsuleManagerTrait;
 use Vinelab\NeoEloquent\Eloquent\Model as Eloquent;
 use Illuminate\Database\Connectors\ConnectionFactory;
 
-class Manager
+class Manager extends \Illuminate\Database\Capsule\Manager
 {
     use CapsuleManagerTrait;
 

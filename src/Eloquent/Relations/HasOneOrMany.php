@@ -357,7 +357,7 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      * Attach a model instance to the parent model.
      *
      * @param \Illuminate\Database\Eloquent\Model $model
-     * @param array                               $properties The relationship properites
+     * @param array                               $properties The relationship properties
      *
      * @return \Vinelab\NeoEloquent\Eloquent\Edges\Edge[In, Out, etc.]
      */
@@ -376,7 +376,7 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
      * Attach an array of models to the parent instance.
      *
      * @param array $models
-     * @param arra  $properties The relationship properties
+     * @param array  $properties The relationship properties
      *
      * @return array
      */
@@ -593,7 +593,10 @@ abstract class HasOneOrMany extends Relation implements RelationInterface
         if ($detaching && count($detach) > 0) {
             $this->detach($detach);
 
-            $changes['detached'] = (array) array_map('intval', $detach);
+            // TODO: remove id
+            //            $changes['detached'] = (array) array_map('intval', $detach);
+
+            $changes['detached'] = (array) $detach;
         }
 
         // Now we are finally ready to attach the new records. Note that we'll disable

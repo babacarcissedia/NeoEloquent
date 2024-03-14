@@ -448,94 +448,6 @@ abstract class Model extends \Illuminate\Database\Eloquent\Model
     }
 
     /**
-     * Register a saving model event with the dispatcher.
-     *
-     * @param \Closure|string $callback
-     * @param int             $priority
-     */
-    public static function saving($callback, $priority = 0)
-    {
-        static::registerModelEvent('saving', $callback, $priority);
-    }
-
-    /**
-     * Register an updated model event with the dispatcher.
-     *
-     * @param \Closure|string $callback
-     * @param int             $priority
-     */
-    public static function updated($callback, $priority = 0)
-    {
-        static::registerModelEvent('updated', $callback, $priority);
-    }
-
-    /**
-     * Register a creating model event with the dispatcher.
-     *
-     * @param \Closure|string $callback
-     * @param int             $priority
-     */
-    public static function creating($callback, $priority = 0)
-    {
-        static::registerModelEvent('creating', $callback, $priority);
-    }
-
-    /**
-     * Register a created model event with the dispatcher.
-     *
-     * @param \Closure|string $callback
-     * @param int             $priority
-     */
-    public static function created($callback, $priority = 0)
-    {
-        static::registerModelEvent('created', $callback, $priority);
-    }
-
-    /**
-     * Register a deleting model event with the dispatcher.
-     *
-     * @param \Closure|string $callback
-     * @param int             $priority
-     */
-    public static function deleting($callback, $priority = 0)
-    {
-        static::registerModelEvent('deleting', $callback, $priority);
-    }
-
-    /**
-     * Register a deleted model event with the dispatcher.
-     *
-     * @param \Closure|string $callback
-     * @param int             $priority
-     */
-    public static function deleted($callback, $priority = 0)
-    {
-        static::registerModelEvent('deleted', $callback, $priority);
-    }
-
-    /**
-     * Register an updating model event with the dispatcher.
-     *
-     * @param \Closure|string $callback
-     * @param int             $priority
-     */
-    public static function updating($callback, $priority = 0)
-    {
-        static::registerModelEvent('updating', $callback, $priority);
-    }
-
-    /**
-     * Register a saved model event with the dispatcher.
-     *
-     * @param \Closure|string $callback
-     * @param int             $priority
-     */
-    public static function saved($callback, $priority = 0)
-    {
-        static::registerModelEvent('saved', $callback, $priority);
-    }
-
-    /**
      * Create a model with its relations.
      *
      * @param array $attributes
@@ -744,13 +656,13 @@ abstract class Model extends \Illuminate\Database\Eloquent\Model
         return $this->getConnectionName();
     }
 
-    public function getQueueableRelations()
-    {
-        throw new BadMethodCallException('NeoEloquent does not support queueable relations yet');
-    }
+    //    public function getQueueableRelations()
+    //    {
+    //        throw new BadMethodCallException('NeoEloquent does not support queueable relations yet');
+    //    }
 
-    public function resolveChildRouteBinding($childType, $value, $field)
-    {
-        throw new BadMethodCallException('NeoEloquent does not support queueable relations yet');
-    }
+    //    public function resolveChildRouteBinding($childType, $value, $field)
+    //    {
+    //        throw new BadMethodCallException('NeoEloquent does not support queueable relations yet');
+    //    }
 }

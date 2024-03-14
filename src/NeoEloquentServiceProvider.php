@@ -44,18 +44,14 @@ class NeoEloquentServiceProvider extends ServiceProvider
     public function register()
     {
         $this->app['db']->extend('neo4j', function ($config) {
-            $this->config = $config;
-            $conn = new ConnectionAdapter($config);
+            $conn = new NeoEloquentConnection($config);
             $conn->setSchemaGrammar(new CypherGrammar());
 
             return $conn;
         });
 
         $this->app->bind('neoeloquent.connection', function () {
-            // $config is set by the previous binding,
-            // so that we get the correct configuration
-            // set by the user.
-            $conn = new NeoEloquentConnection($this->config);
+            $conn = new NeoEloquentConnection(config('database.connections.neo4j'));
             $conn->setSchemaGrammar(new CypherGrammar());
 
             return $conn;
