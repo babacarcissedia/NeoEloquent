@@ -963,7 +963,7 @@ class Builder extends \Illuminate\Database\Query\Builder
             return count($results);
         }
 
-        return isset($results[0]) ? (int) array_change_key_case((array) $results[0])['aggregate'] : 0;
+        return isset($results[0]) ? (int) $results[0]->get('count(*)') : 0;
     }
 
     /**
