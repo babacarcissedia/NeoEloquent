@@ -252,9 +252,10 @@ abstract class Delegate
         $label = $model->getDefaultNodeLabel();
 
         // The id should not be part of the properties since it is treated differently
-        if (isset($properties['id'])) {
-            unset($properties['id']);
-        }
+        // TODO: remove id
+//        if (isset($properties['id'])) {
+//            unset($properties['id']);
+//        }
 
         return new Node($id, new CypherList([$label]), new CypherMap($properties));
     }

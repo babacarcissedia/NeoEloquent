@@ -308,11 +308,6 @@ class Connection extends \Illuminate\Database\Connection implements ConnectionIn
      */
     public function select($query, $bindings = [], $useReadPdo = false)
     {
-        if (isset($bindings['userid']) && $bindings['userid'] == '1') {
-            dd($bindings);
-            Helpers::crash();
-        }
-
         return $this->run($query, $bindings, function (self $me, $query, array $bindings) {
             if ($me->pretending()) {
                 return [];

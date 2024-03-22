@@ -285,7 +285,7 @@ abstract class OneRelation extends Relation implements RelationInterface
      *
      * @return array
      */
-    public function match(array $models, Collection $results, $relation)
+    public function match(array $models, $results, $relation)
     {
         // We will need the parent node placeholder so that we use it to extract related results.
         $parent = $this->query->getQuery()->modelAsNode($this->parent->nodeLabel());

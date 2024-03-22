@@ -140,7 +140,7 @@ abstract class Grammar extends \Illuminate\Database\Query\Grammars\Grammar
      */
     public function prepareRelation($relation, $related)
     {
-        return $this->getRelationIdentifier($relation, $related) . ":{$relation}";
+        return $this->getRelationIdentifier($relation, $related) . sprintf(":%s", class_basename($relation));
     }
 
     /**
@@ -153,7 +153,7 @@ abstract class Grammar extends \Illuminate\Database\Query\Grammars\Grammar
      */
     public function getRelationIdentifier($relation, $related)
     {
-        return 'rel_' . mb_strtolower($relation) . '_' . $related;
+        return 'rel_' . mb_strtolower(class_basename($relation)) . '_' . $related;
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace Vinelab\NeoEloquent\Eloquent;
 
 use BadMethodCallException;
+use Illuminate\Support\Str;
 use Vinelab\NeoEloquent\Helpers;
 use Vinelab\NeoEloquent\Eloquent\Relations\HasOne;
 use Vinelab\NeoEloquent\Eloquent\Relations\HasMany;
@@ -654,6 +655,17 @@ abstract class Model extends \Illuminate\Database\Eloquent\Model
     public function getQueueableConnection()
     {
         return $this->getConnectionName();
+    }
+
+
+    /**
+     * Get the table associated with the model.
+     *
+     * @return string
+     */
+    public function getTable()
+    {
+        return $this->table ?? class_basename($this);
     }
 
     //    public function getQueueableRelations()

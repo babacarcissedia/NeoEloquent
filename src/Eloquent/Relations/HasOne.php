@@ -152,7 +152,7 @@ class HasOne extends HasOneOrMany
      *
      * @return array
      */
-    public function match(array $models, Collection $results, $relation)
+    public function match(array $models, $results, $relation)
     {
         return $this->matchOne($models, $results, $relation);
     }

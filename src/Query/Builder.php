@@ -433,7 +433,7 @@ class Builder extends \Illuminate\Database\Query\Builder
     {
         // First we check whether the operator is 'IN' so that we call whereIn() on it
         // as a helping hand and centralization strategy, whereIn knows what to do with the IN operator.
-        if (mb_strtolower($operator) == 'in') {
+        if (!is_null($operator) && mb_strtolower($operator) == 'in') {
             return $this->whereIn($column, $value, $boolean);
         }
 
@@ -1559,6 +1559,28 @@ class Builder extends \Illuminate\Database\Query\Builder
     public function toCypher()
     {
         return $this->grammar->compileSelect($this);
+    }
+
+
+
+    /**
+     * Add another query builder as a nested where to the query builder.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     * @param  string  $boolean
+     * @return $this
+     */
+    public function addNestedWhereQuery($query, $boolean = 'and')
+    {
+        if ($query->wheres && count($query->wheres)) {
+            $type = 'Nested';
+
+            $this->wheres[] = compact('type', 'query', 'boolean');
+
+            $this->addBinding($query->getRawBindings()['where'], 'where');
+        }
+
+        return $this;
     }
 
     /**
